@@ -1,5 +1,8 @@
 name: M5 Intraday Sync
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   schedule:
     # 1. Market Open Phase (13:30 - 15:30 UTC): Alle 5 Minuten
@@ -12,10 +15,6 @@ on:
     - cron: '*/5 19-21 * * 1-5'
 
   workflow_dispatch:
-
-# Hier zwingen wir den GitHub-Runner global auf die neue Node-Version
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   run-sync:

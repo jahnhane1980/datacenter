@@ -1,17 +1,15 @@
 name: Daily Market Sync
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 on:
   schedule:
     # Läuft jeden Dienstag bis Samstag um 04:00 Uhr UTC
-    # (Damit ist der US-Markt definitiv geschlossen und alle Daten vom Vortag sind bei Polygon bereit)
     - cron: '0 4 * * 2-6'
   
-  # Dieser geniale Befehl erlaubt es dir, das Skript jederzeit MANUELL über die GitHub-Webseite zu starten!
+  # Erlaubt den manuellen Start über die GitHub-Oberfläche
   workflow_dispatch: 
-
-# Hier zwingen wir den GitHub-Runner global auf die neue Node-Version
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   run-sync:
@@ -31,7 +29,6 @@ jobs:
       - name: Daily Sync ausführen
         run: node sync-daily.js
         env:
-          # Hier ziehen wir die sicheren Keys aus den GitHub Secrets
           POLYGONIO_API_KEY: ${{ secrets.POLYGONIO_API_KEY }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
