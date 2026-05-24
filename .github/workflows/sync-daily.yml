@@ -9,6 +9,10 @@ on:
   # Dieser geniale Befehl erlaubt es dir, das Skript jederzeit MANUELL über die GitHub-Webseite zu starten!
   workflow_dispatch: 
 
+# Hier zwingen wir den GitHub-Runner global auf die neue Node-Version
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   run-sync:
     runs-on: ubuntu-latest
