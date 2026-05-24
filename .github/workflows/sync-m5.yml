@@ -1,0 +1,36 @@
+name: M5 Intraday Sync
+
+on:
+  schedule:
+    # 1. Market Open Phase (13:30 - 15:30 UTC): Alle 5 Minuten
+    - cron: '*/5 13-15 * * 1-5'
+    
+    # 2. Mid-Day Phase (16:00 - 18:00 UTC): Nur einmal pro Stunde (spart Action-Minuten)
+    - cron: '0 16-18 * * 1-5'
+    
+    # 3. Power Hour & Close (19:00 - 21:30 UTC): Wieder alle 5 Minuten
+    - cron: '*/5 19-21 * * 1-5'
+
+  workflow_dispatch:
+
+jobs:
+  run-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code auschecken
+        uses: actions/checkout@v4
+
+      - name: Node.js 22 einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+
+      - name: Pakete installieren
+        run: npm install
+
+      - name: M5 Sync ausführen
+        run: node sync-m5.js
+        env:
+          POLYGONIO_API_KEY: ${{ secrets.POLYGONIO_API_KEY }}
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
