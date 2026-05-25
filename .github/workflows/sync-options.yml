@@ -1,0 +1,59 @@
+name: Finance-OS Options Engine Sync
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  schedule:
+    # 1. TRIGGER: Stündlich von 14:00 bis 21:00 UTC (Montag bis Freitag) -> Für Intraday (16:00 - 23:00 Uhr MESZ)
+    - cron: '0 14-21 * * 1-5'
+    # 2. TRIGGER: Jeden Abend um 22:30 UTC (Montag bis Freitag) -> Für den EOD-Abschluss (00:30 Uhr MESZ)
+    - cron: '30 22 * * 1-5'
+  workflow_dispatch: # Manueller Start jederzeit möglich
+
+jobs:
+  # JOB 1: Der stündliche Intraday-Lauf für AlphaVantage Ratios
+  intraday-ratio-sync:
+    if: github.event.schedule == '0 14-21 * * 1-5' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code auschecken
+        uses: actions/checkout@v4
+
+      - name: Node.js einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+
+      - name: Abhängigkeiten installieren
+        run: npm install
+
+      - name: Intraday Späher ausführen
+        run: node sync-options-intra.js
+        env:
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          ALPHAVANTAGE_API_KEY: ${{ secrets.ALPHAVANTAGE_API_KEY }}
+
+  # JOB 2: Der historische EOD-Abschluss für Massive/Polygon (Wird nachts gefeuert)
+  historical-macro-sync:
+    if: github.event.schedule == '30 22 * * 1-5' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code auschecken
+        uses: actions/checkout@v4
+
+      - name: Node.js einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+
+      - name: Abhängigkeiten installieren
+        run: npm install
+
+      - name: Historischen Scharfschützen ausführen
+        run: node sync-options-historic.js
+        env:
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          POLYGONIO_API_KEY: ${{ secrets.POLYGONIO_API_KEY }}
