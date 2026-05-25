@@ -11,10 +11,18 @@ export class SyncManager {
 
     async runDailySync(isMarketOpen = true) {
         console.log('=== Starte Daily Sync ===');
-        const tickers = await this.tickerRepository.getAllTickers();
+        
+        // Für EOD-Kerzen brauchen wir Aktien (3) UND ETFs (4) für unsere Makro-Indikatoren.
+        // Krypto (1) schließen wir hier aus, das macht später das Bitget-Skript.
+        const allTickers = await this.tickerRepository.getAllTickers();
+
+        // FIX: Kugelsicherer Cast zu Number, falls Supabase einen String liefert
+        const tickers = allTickers ? allTickers.filter(t => 
+            Number(t.ticker_typ_id) === 3 || Number(t.ticker_typ_id) === 4
+        ) : [];
         
         if (!tickers || tickers.length === 0) {
-            console.log('Keine Ticker in der Datenbank gefunden.');
+            console.log('Keine relevanten Ticker (Aktien/ETFs) in der Datenbank gefunden.');
             return;
         }
 
@@ -22,7 +30,7 @@ export class SyncManager {
         const toDateStr = this.formatDate(today);
 
         for (const ticker of tickers) {
-            console.log(`\nVerarbeite Daily für ${ticker.name}...`);
+            console.log(`\nVerarbeite Daily für ${ticker.name} (Typ: ${ticker.ticker_typ_id})...`);
             
             try {
                 const latestTimestamp = await this.candleRepository.getLatestTimestamp('daily_candles', ticker.id);
@@ -76,9 +84,15 @@ export class SyncManager {
 
     async runM5Sync(isMarketOpen = true) {
         console.log('=== Starte M5 Sync ===');
-        const tickers = await this.tickerRepository.getAllTickers();
         
-        if (!tickers || tickers.length === 0) return;
+        // M5 (Intraday) ist ein reines Aktien-Spiel. ETFs interessieren uns hier nicht.
+        // Wir filtern direkt über das Repository auf Typ 3 (STOCK).
+        const tickers = await this.tickerRepository.getAllTickers(3);
+        
+        if (!tickers || tickers.length === 0) {
+            console.log('Keine Aktien (Typ 3) in der Datenbank gefunden.');
+            return;
+        }
 
         const today = new Date();
         const toDateStr = this.formatDate(today);

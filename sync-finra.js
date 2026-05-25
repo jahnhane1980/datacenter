@@ -41,10 +41,10 @@ async function syncFinraShortVolumeLive() {
     const finraRepo = new FinraRepository();
     const finraService = new FinraService();
 
-    // 1. Alle zu überwachenden Ticker laden
-    const tickers = await tickerRepo.getAllTickers();
+    // 1. Alle zu überwachenden Ticker laden (GEFILTERT AUF TYP 3: STOCK)
+    const tickers = await tickerRepo.getAllTickers(3);
     if (!tickers || tickers.length === 0) {
-        console.log('Keine Ticker für den Vergleich in der DB gefunden.');
+        console.log('Keine Ticker (Typ: STOCK) für den Vergleich in der DB gefunden.');
         return;
     }
 

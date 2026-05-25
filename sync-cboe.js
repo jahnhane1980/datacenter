@@ -19,9 +19,10 @@ async function syncCboeOptions() {
     const cboeRepo = new CboeRepository(); 
     const cboeService = new CboeService();
 
-    const tickers = await tickerRepo.getAllTickers();
+    // GEFILTERT AUF TYP 3: STOCK
+    const tickers = await tickerRepo.getAllTickers(3);
     if (!tickers || tickers.length === 0) {
-        console.log('Keine Ticker für den Sync gefunden.');
+        console.log('Keine Ticker (Typ: STOCK) für den Sync gefunden.');
         return;
     }
 
