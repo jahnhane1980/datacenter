@@ -1,2 +1,4 @@
 .env
 node_modules/
+analyze-ticker.js
+live-airbag.js
