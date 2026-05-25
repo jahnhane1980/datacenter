@@ -1,0 +1,36 @@
+name: FINRA Short Volume Sync
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  schedule:
+    # Jeden Dienstag bis Samstag um 05:30 Uhr UTC
+    - cron: '30 5 * * 2-6'
+  workflow_dispatch: 
+
+jobs:
+  run-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code auschecken
+        uses: actions/checkout@v4
+
+      - name: Node.js 22 einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+
+      - name: Installiere Chrome-Abhängigkeiten für Puppeteer
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgbm-dev wget gnupg
+
+      - name: Pakete installieren
+        run: npm install
+
+      - name: FINRA Sync ausführen
+        run: node sync-finra.js
+        env:
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
