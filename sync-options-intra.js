@@ -3,10 +3,10 @@ import { AlphaVantageOptionService } from './src/services/AlphaVantageOptionServ
 
 /**
  * Intraday Options-Späher
- * Holt stündlich die aktuellen Ratios aus der AlphaVantage Kette.
+ * Holt stündlich die aktuellen Ratios aus der AlphaVantage Kette (Nur für Typ STOCK = 3).
  */
 async function runIntradaySync() {
-    console.log('[OPTIONS-INTRA] Starte stündlichen Options-Ratio Scan...');
+    console.log('[OPTIONS-INTRA] Starte stündlichen Options-Ratio Scan für STOCK Assets...');
 
     try {
         // 1. Zwingend dynamischer Import NACHDEM dotenv geladen ist
@@ -19,16 +19,17 @@ async function runIntradaySync() {
         const optionRepo = new OptionRepository(supabaseClient);
         const alphaVantageService = new AlphaVantageOptionService();
 
-        const tickers = await tickerRepo.getAllTickers();
+        // FIX: Hole ab sofort NUR NOCH Ticker vom Typ 3 (STOCK)
+        const tickers = await tickerRepo.getAllTickers(3);
         if (!tickers || tickers.length === 0) {
-            console.warn('[OPTIONS-INTRA] Keine Ticker registriert. Breche ab.');
+            console.warn('[OPTIONS-INTRA] Keine STOCK-Ticker registriert. Breche ab.');
             return;
         }
 
         for (const tickerRow of tickers) {
             const tickerId = tickerRow.id;
             
-            // HIER IST DER FIX: Die Datenbank nutzt die Spalte 'name' statt 'symbol'
+            // Die Datenbank nutzt die Spalte 'name' statt 'symbol'
             const symbolUpper = tickerRow.name.toUpperCase();
 
             console.log(`\n[OPTIONS-INTRA] Scanne Ticker: ${symbolUpper} (ID: ${tickerId})`);
