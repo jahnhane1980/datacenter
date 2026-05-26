@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { TickerRepository } from './src/repositories/TickerRepository.js';
+import { createTickerRepository } from './src/repositories/TickerRepository.js';
 import { FinraRepository } from './src/repositories/FinraRepository.js';
 import { FinraService } from './src/services/FinraService.js';
 
@@ -37,7 +37,7 @@ async function syncFinraShortVolumeLive() {
 
     const { supabaseClient } = await import('./src/core/SupabaseClient.js');
 
-    const tickerRepo = new TickerRepository(supabaseClient);
+    const tickerRepo = createTickerRepository();
     const finraRepo = new FinraRepository();
     const finraService = new FinraService();
 
