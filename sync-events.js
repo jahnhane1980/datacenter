@@ -31,11 +31,11 @@ async function runEventSync() {
     try {
         // Dynamischer Import nach dotenv
         const { supabaseClient } = await import('./src/core/SupabaseClient.js');
-        const { TickerRepository } = await import('./src/repositories/TickerRepository.js');
+        const { createTickerRepository } = await import('./src/repositories/TickerRepository.js');
         const { EventRepository } = await import('./src/repositories/EventRepository.js');
         const { FinnhubService } = await import('./src/services/FinnhubService.js');
 
-        const tickerRepo = new TickerRepository(supabaseClient);
+        const tickerRepo = createTickerRepository();
         const eventRepo = new EventRepository(supabaseClient);
         const finnhubService = new FinnhubService();
 

@@ -18,10 +18,10 @@ async function runEarningsBackfill() {
 
     try {
         const { supabaseClient } = await import('./src/core/SupabaseClient.js');
-        const { TickerRepository } = await import('./src/repositories/TickerRepository.js');
+        const { createTickerRepository } = await import('./src/repositories/TickerRepository.js');
         const { EventRepository } = await import('./src/repositories/EventRepository.js');
 
-        const tickerRepo = new TickerRepository(supabaseClient);
+        const tickerRepo = createTickerRepository();
         const eventRepo = new EventRepository(supabaseClient);
 
         console.log('Lade Aktien (Typ 3) aus der Datenbank...');
