@@ -22,6 +22,22 @@ export class CandleRepository {
         return data ? data.timestamp : null;
     }
 
+    // NEUE METHODE: Benötigt für die Sektor-Berechnung, um die Historie für RSI und Momentum zu laden
+    async getCandlesSince(tableName, tickerId, sinceTimestamp) {
+        const { data, error } = await this.supabaseClient
+            .from(tableName)
+            .select('timestamp, close')
+            .eq('ticker', tickerId)
+            .gte('timestamp', sinceTimestamp)
+            .order('timestamp', { ascending: true });
+
+        if (error) {
+            throw new Error(`Fehler beim Abrufen der historischen Kerzen (${tableName}, Ticker ${tickerId}): ${error.message}`);
+        }
+
+        return data || [];
+    }
+
     async upsertCandles(tableName, tickerId, polygonAggregates) {
         if (!polygonAggregates || polygonAggregates.length === 0) {
             console.log(`Keine Daten zum Upsert für Ticker-ID ${tickerId} in ${tableName}.`);
