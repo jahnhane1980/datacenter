@@ -1,0 +1,93 @@
+import 'dotenv/config';
+import { createFredService, FRED_SERIES } from './src/services/FredService.js';
+import { createFredRepository } from './src/repositories/FredRepository.js';
+
+async function runDailySync() {
+    console.log('Starte täglichen FRED Macro Liquidity Sync...');
+
+    try {
+        const fredService = createFredService();
+        const fredRepository = createFredRepository();
+
+        const DAYS_BACK = 14; 
+        
+        console.log(`Lade Daten der letzten ${DAYS_BACK} Tage von der FRED API...`);
+        
+        const [tgaData, rrpData, fedData, btfpData] = await Promise.all([
+            fredService.getRecentData(FRED_SERIES.TGA_BALANCE, DAYS_BACK),
+            fredService.getRecentData(FRED_SERIES.REVERSE_REPO, DAYS_BACK),
+            fredService.getRecentData(FRED_SERIES.FED_BALANCE_SHEET, DAYS_BACK),
+            fredService.getRecentData(FRED_SERIES.BANK_TERM_FUNDING_PROGRAM, DAYS_BACK)
+        ]);
+
+        console.log('Daten erfolgreich geladen. Führe Merge nach Datum durch...');
+
+        const mergedDataByDate = new Map();
+
+        const processSeries = (observations, fieldName) => {
+            for (const obs of observations) {
+                const date = obs.date;
+                if (!mergedDataByDate.has(date)) {
+                    mergedDataByDate.set(date, {
+                        tga_balance: null,
+                        rrp_balance: null,
+                        fed_balance: null,
+                        btfp_balance: null
+                    });
+                }
+                
+                const value = obs.value !== '.' ? parseFloat(obs.value) : null;
+                mergedDataByDate.get(date)[fieldName] = value;
+            }
+        };
+
+        processSeries(tgaData, 'tga_balance');
+        processSeries(rrpData, 'rrp_balance');
+        processSeries(fedData, 'fed_balance');
+        processSeries(btfpData, 'btfp_balance');
+
+        console.log(`Starte Filterung und Upsert für ${mergedDataByDate.size} erfasste Tage...`);
+
+        let successCount = 0;
+        let skippedCount = 0;
+        let errorCount = 0;
+
+        for (const [date, values] of mergedDataByDate.entries()) {
+            // Guard Clause: Überspringe Tage, an denen alle Werte null sind
+            if (
+                values.tga_balance === null &&
+                values.rrp_balance === null &&
+                values.fed_balance === null &&
+                values.btfp_balance === null
+            ) {
+                skippedCount++;
+                continue;
+            }
+
+            try {
+                await fredRepository.upsertMacroData(
+                    date,
+                    values.tga_balance,
+                    values.rrp_balance,
+                    values.fed_balance,
+                    values.btfp_balance
+                );
+                successCount++;
+            } catch (err) {
+                console.error(`Fehler beim Upsert für das Datum ${date}:`, err.message);
+                errorCount++;
+            }
+        }
+
+        console.log('Daily Sync erfolgreich beendet!');
+        console.log(`Erfolgreiche Inserts/Updates: ${successCount}`);
+        console.log(`Übersprungene leere Tage: ${skippedCount}`);
+        console.log(`Fehlgeschlagene Inserts: ${errorCount}`);
+
+    } catch (error) {
+        console.error('Kritischer Fehler im Sync-Skript:', error);
+        process.exit(1);
+    }
+}
+
+runDailySync();
