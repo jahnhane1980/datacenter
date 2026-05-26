@@ -35,12 +35,12 @@ async function runDailySectorSync() {
     try {
         // Dynamischer Import nach dotenv
         const { supabaseClient } = await import('./src/core/SupabaseClient.js');
-        const { TickerRepository } = await import('./src/repositories/TickerRepository.js');
+        const { createTickerRepository } = await import('./src/repositories/TickerRepository.js');
         const { CandleRepository } = await import('./src/repositories/CandleRepository.js');
         const { SectorRotationRepository } = await import('./src/repositories/SectorRotationRepository.js');
 
         // Repositories initialisieren
-        const tickerRepo = new TickerRepository(supabaseClient);
+        const tickerRepo = createTickerRepository();
         const candleRepo = new CandleRepository(supabaseClient);
         const sectorRepo = new SectorRotationRepository(supabaseClient);
 

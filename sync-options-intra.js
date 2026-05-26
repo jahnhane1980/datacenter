@@ -11,11 +11,11 @@ async function runIntradaySync() {
     try {
         // 1. Zwingend dynamischer Import NACHDEM dotenv geladen ist
         const { supabaseClient } = await import('./src/core/SupabaseClient.js');
-        const { TickerRepository } = await import('./src/repositories/TickerRepository.js');
+        const { createTickerRepository } = await import('./src/repositories/TickerRepository.js');
         const { OptionRepository } = await import('./src/repositories/OptionRepository.js');
 
         // 2. Den Supabase-Client sauber in die Konstruktoren injizieren
-        const tickerRepo = new TickerRepository(supabaseClient);
+        const tickerRepo = createTickerRepository();
         const optionRepo = new OptionRepository(supabaseClient);
         const alphaVantageService = new AlphaVantageOptionService();
 
