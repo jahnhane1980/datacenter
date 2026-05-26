@@ -40,6 +40,8 @@ export class PolygonIoService {
                 // Anstatt im RAM zu sammeln, feuern wir den Chunk direkt an den Manager
                 if (response.results && response.results.length > 0) {
                     await onChunkReceived(response.results);
+                } else {
+                    console.log(`[${ticker}] Polygon meldet 0 Ergebnisse von ${from} bis ${to} (Wochenende/Feiertag?).`);
                 }
 
                 if (response.next_url) {

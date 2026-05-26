@@ -5,14 +5,8 @@ env:
 
 on:
   schedule:
-    # 1. Market Open Phase (13:30 - 15:30 UTC): Alle 5 Minuten
-    - cron: '*/5 13-15 * * 1-5'
-    
-    # 2. Mid-Day Phase (16:00 - 18:00 UTC): Nur einmal pro Stunde (spart Action-Minuten)
-    - cron: '0 16-18 * * 1-5'
-    
-    # 3. Power Hour & Close (19:00 - 21:30 UTC): Wieder alle 5 Minuten
-    - cron: '*/5 19-21 * * 1-5'
+    # Läuft um 03:00 UTC (das ist 05:00 Uhr unserer Zeit), von Dienstag (2) bis Samstag (6)
+    - cron: '0 3 * * 2-6'
 
   workflow_dispatch:
 

@@ -6,7 +6,8 @@ async function main() {
     try {
         // Zwingend dynamischer Import NACHDEM dotenv geladen ist
         const { supabaseClient } = await import('./src/core/SupabaseClient.js');
-        const { TickerRepository } = await import('./src/repositories/TickerRepository.js');
+        // FIX: Importiere die Factory-Funktion statt der Klasse
+        const { createTickerRepository } = await import('./src/repositories/TickerRepository.js');
         const { CandleRepository } = await import('./src/repositories/CandleRepository.js');
         const { PolygonIoService } = await import('./src/services/PolygonIoService.js');
         const { MarketStatusService } = await import('./src/services/MarketStatusService.js');
@@ -17,7 +18,8 @@ async function main() {
         console.log(`Polygon Market Status: ${isMarketOpen ? 'Offen' : 'Geschlossen'}`);
         
         // Abhängigkeiten (DI) bauen
-        const tickerRepo = new TickerRepository(supabaseClient);
+        // FIX: Nutze die funktionale Closure statt 'new'. (supabaseClient wird intern bereits importiert)
+        const tickerRepo = createTickerRepository();
         const candleRepo = new CandleRepository(supabaseClient);
         const polygonService = new PolygonIoService();
 
