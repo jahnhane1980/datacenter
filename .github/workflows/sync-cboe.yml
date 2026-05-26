@@ -5,7 +5,8 @@ env:
 
 on:
   schedule:
-    - cron: '0 5 * * 2-6'
+    # Leicht versetzt auf 05:15 UTC, um Kollisionen mit der Sector Rotation zu vermeiden
+    - cron: '15 5 * * 2-6'
   workflow_dispatch: 
 
 jobs:
