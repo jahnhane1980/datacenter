@@ -30,7 +30,26 @@ export function createFredRepository() {
         }
     };
 
+    /**
+     * Holt das aktuellste (jüngste) observation_date aus der macro_liquidity Tabelle.
+     * @returns {Promise<string|null>} Das Datum als String (YYYY-MM-DD) oder null, wenn leer.
+     */
+    const getLatestObservationDate = async () => {
+        const { data, error } = await supabaseClient
+            .from('macro_liquidity')
+            .select('observation_date')
+            .order('observation_date', { ascending: false })
+            .limit(1);
+
+        if (error) {
+            throw new Error(`Fehler beim Abrufen des letzten Datums: ${error.message}`);
+        }
+
+        return data && data.length > 0 ? data[0].observation_date : null;
+    };
+
     return {
-        upsertMacroData
+        upsertMacroData,
+        getLatestObservationDate
     };
 }

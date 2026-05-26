@@ -3,19 +3,24 @@ import { createFredService, FRED_SERIES } from './src/services/FredService.js';
 import { createFredRepository } from './src/repositories/FredRepository.js';
 
 async function runBackfill() {
-    console.log('Starte FRED Macro Liquidity Backfill (ab 2021-01-01)...');
+    console.log('Starte FRED Macro Liquidity Backfill...');
 
     try {
         const fredService = createFredService();
         const fredRepository = createFredRepository();
 
-        console.log('Lade historische Daten von der FRED API...');
+        // Letztes vorhandenes Datum aus der DB holen
+        const latestDate = await fredRepository.getLatestObservationDate();
+        const startDate = latestDate ? latestDate : '2021-01-01';
+
+        console.log(`Letzter Datenbankeintrag: ${latestDate || 'Keiner gefunden'}. Hole Daten ab: ${startDate}...`);
         
+        // Wir nutzen hier direkt fetchObservations, um das dynamische startDate zu übergeben
         const [tgaData, rrpData, fedData, btfpData] = await Promise.all([
-            fredService.getBackfillData(FRED_SERIES.TGA_BALANCE),
-            fredService.getBackfillData(FRED_SERIES.REVERSE_REPO),
-            fredService.getBackfillData(FRED_SERIES.FED_BALANCE_SHEET),
-            fredService.getBackfillData(FRED_SERIES.BANK_TERM_FUNDING_PROGRAM)
+            fredService.fetchObservations(FRED_SERIES.TGA_BALANCE, startDate),
+            fredService.fetchObservations(FRED_SERIES.REVERSE_REPO, startDate),
+            fredService.fetchObservations(FRED_SERIES.FED_BALANCE_SHEET, startDate),
+            fredService.fetchObservations(FRED_SERIES.BANK_TERM_FUNDING_PROGRAM, startDate)
         ]);
 
         console.log('Daten erfolgreich geladen. Führe Merge nach Datum durch...');
@@ -44,7 +49,7 @@ async function runBackfill() {
         processSeries(fedData, 'fed_balance');
         processSeries(btfpData, 'btfp_balance');
 
-        console.log(`Merge abgeschlossen. Überprüfe ${mergedDataByDate.size} eindeutige Tage...`);
+        console.log(`Merge abgeschlossen. Überprüfe ${mergedDataByDate.size} eindeutige Tage auf Änderungen...`);
 
         let successCount = 0;
         let skippedCount = 0;

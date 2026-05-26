@@ -9,15 +9,26 @@ async function runDailySync() {
         const fredService = createFredService();
         const fredRepository = createFredRepository();
 
-        const DAYS_BACK = 14; 
+        let startDate;
+        const latestDate = await fredRepository.getLatestObservationDate();
+
+        if (latestDate) {
+            startDate = latestDate;
+            console.log(`Letzter Datenbankeintrag gefunden: ${latestDate}. Hole Delta bis heute...`);
+        } else {
+            // Fallback, falls die Tabelle komplett leer ist
+            const date = new Date();
+            date.setDate(date.getDate() - 14);
+            startDate = date.toISOString().split('T')[0];
+            console.log(`Kein Eintrag gefunden. Fallback auf die letzten 14 Tage (ab ${startDate})...`);
+        }
         
-        console.log(`Lade Daten der letzten ${DAYS_BACK} Tage von der FRED API...`);
-        
+        // Direkte Nutzung von fetchObservations für dynamisches Datum
         const [tgaData, rrpData, fedData, btfpData] = await Promise.all([
-            fredService.getRecentData(FRED_SERIES.TGA_BALANCE, DAYS_BACK),
-            fredService.getRecentData(FRED_SERIES.REVERSE_REPO, DAYS_BACK),
-            fredService.getRecentData(FRED_SERIES.FED_BALANCE_SHEET, DAYS_BACK),
-            fredService.getRecentData(FRED_SERIES.BANK_TERM_FUNDING_PROGRAM, DAYS_BACK)
+            fredService.fetchObservations(FRED_SERIES.TGA_BALANCE, startDate),
+            fredService.fetchObservations(FRED_SERIES.REVERSE_REPO, startDate),
+            fredService.fetchObservations(FRED_SERIES.FED_BALANCE_SHEET, startDate),
+            fredService.fetchObservations(FRED_SERIES.BANK_TERM_FUNDING_PROGRAM, startDate)
         ]);
 
         console.log('Daten erfolgreich geladen. Führe Merge nach Datum durch...');
@@ -46,7 +57,7 @@ async function runDailySync() {
         processSeries(fedData, 'fed_balance');
         processSeries(btfpData, 'btfp_balance');
 
-        console.log(`Starte Filterung und Upsert für ${mergedDataByDate.size} erfasste Tage...`);
+        console.log(`Starte Filterung und Upsert für ${mergedDataByDate.size} erfasste Tage (Delta)...`);
 
         let successCount = 0;
         let skippedCount = 0;
