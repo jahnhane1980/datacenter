@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { TickerRepository } from './src/repositories/TickerRepository.js';
+import { createTickerRepository } from './src/repositories/TickerRepository.js';
 import { CboeRepository } from './src/repositories/CboeRepository.js';
 import { CboeService } from './src/services/CboeService.js';
 
@@ -15,7 +15,7 @@ async function syncCboeOptions() {
 
     const { supabaseClient } = await import('./src/core/SupabaseClient.js');
 
-    const tickerRepo = new TickerRepository(supabaseClient);
+    const tickerRepo = createTickerRepository();
     const cboeRepo = new CboeRepository(); 
     const cboeService = new CboeService();
 
