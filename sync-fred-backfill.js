@@ -11,16 +11,21 @@ async function runBackfill() {
 
         // Letztes vorhandenes Datum aus der DB holen
         const latestDate = await fredRepository.getLatestObservationDate();
-        const startDate = latestDate ? latestDate : '2021-01-01';
+        
+        // ACHTUNG: Temporär hart auf 2021-01-01 gesetzt, um WRESBAL historisch aufzufüllen!
+        // Nach dem initialen Lauf wieder auf die auskommentierte Logik umstellen:
+        // const startDate = latestDate ? latestDate : '2021-01-01';
+        const startDate = '2021-01-01';
 
         console.log(`Letzter Datenbankeintrag: ${latestDate || 'Keiner gefunden'}. Hole Daten ab: ${startDate}...`);
         
         // Wir nutzen hier direkt fetchObservations, um das dynamische startDate zu übergeben
-        const [tgaData, rrpData, fedData, btfpData] = await Promise.all([
+        const [tgaData, rrpData, fedData, btfpData, bankReservesData] = await Promise.all([
             fredService.fetchObservations(FRED_SERIES.TGA_BALANCE, startDate),
             fredService.fetchObservations(FRED_SERIES.REVERSE_REPO, startDate),
             fredService.fetchObservations(FRED_SERIES.FED_BALANCE_SHEET, startDate),
-            fredService.fetchObservations(FRED_SERIES.BANK_TERM_FUNDING_PROGRAM, startDate)
+            fredService.fetchObservations(FRED_SERIES.BANK_TERM_FUNDING_PROGRAM, startDate),
+            fredService.fetchObservations(FRED_SERIES.BANK_RESERVES_FED_WEEKLY, startDate)
         ]);
 
         console.log('Daten erfolgreich geladen. Führe Merge nach Datum durch...');
@@ -35,7 +40,8 @@ async function runBackfill() {
                         tga_balance: null,
                         rrp_balance: null,
                         fed_balance: null,
-                        btfp_balance: null
+                        btfp_balance: null,
+                        bank_reserves_fed: null
                     });
                 }
                 
@@ -48,6 +54,7 @@ async function runBackfill() {
         processSeries(rrpData, 'rrp_balance');
         processSeries(fedData, 'fed_balance');
         processSeries(btfpData, 'btfp_balance');
+        processSeries(bankReservesData, 'bank_reserves_fed');
 
         console.log(`Merge abgeschlossen. Überprüfe ${mergedDataByDate.size} eindeutige Tage auf Änderungen...`);
 
@@ -61,7 +68,8 @@ async function runBackfill() {
                 values.tga_balance === null &&
                 values.rrp_balance === null &&
                 values.fed_balance === null &&
-                values.btfp_balance === null
+                values.btfp_balance === null &&
+                values.bank_reserves_fed === null
             ) {
                 skippedCount++;
                 continue;
@@ -73,7 +81,8 @@ async function runBackfill() {
                     values.tga_balance,
                     values.rrp_balance,
                     values.fed_balance,
-                    values.btfp_balance
+                    values.btfp_balance,
+                    values.bank_reserves_fed
                 );
                 successCount++;
             } catch (err) {

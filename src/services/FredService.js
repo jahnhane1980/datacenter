@@ -4,7 +4,8 @@ export const FRED_SERIES = Object.freeze({
     BANK_TERM_FUNDING_PROGRAM: 'H41RESPPALDKNWW',
     REVERSE_REPO: 'RRPONTSYD',
     TGA_BALANCE: 'WTREGEN',
-    FED_BALANCE_SHEET: 'WALCL'
+    FED_BALANCE_SHEET: 'WALCL',
+    BANK_RESERVES_FED_WEEKLY: 'WRESBAL'
 });
 
 export function createFredService(apiKey = process.env.FRED_API_KEY) {
