@@ -5,8 +5,8 @@ env:
 
 on:
   schedule:
-    # Läuft jeden Dienstag bis Samstag um 04:00 Uhr UTC
-    - cron: '0 4 * * 2-6'
+    # Läuft jeden Dienstag bis Samstag um 06:47 Uhr UTC (08:47 Uhr MESZ)
+    - cron: '47 6 * * 2-6'
   
   # Erlaubt den manuellen Start über die GitHub-Oberfläche
   workflow_dispatch: 

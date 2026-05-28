@@ -5,8 +5,9 @@ env:
 
 on:
   schedule:
-    # Läuft jeden Dienstag bis Samstag um 05:00 Uhr UTC (Nach dem Daily Market Sync)
-    - cron: '0 5 * * 2-6'
+    # Läuft jeden Dienstag bis Samstag um 07:12 Uhr UTC (09:12 Uhr MESZ)
+    # Garantiert nach dem Daily Market Sync
+    - cron: '12 7 * * 2-6'
   
   # Erlaubt den manuellen Start über die GitHub-Oberfläche
   workflow_dispatch: 

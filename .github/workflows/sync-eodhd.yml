@@ -5,8 +5,8 @@ env:
 
 on:
   schedule:
-    # Täglich um 02:00 Uhr UTC (leicht versetzt zu anderen Jobs)
-    - cron: '0 2 * * *'
+    # Täglich um 02:12 Uhr UTC (ca. 04:12 Uhr MESZ) - Krumme Minute bricht den GitHub-Stau
+    - cron: '12 2 * * *'
   workflow_dispatch: 
 
 jobs:

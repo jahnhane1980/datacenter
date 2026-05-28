@@ -5,8 +5,8 @@ env:
 
 on:
   schedule:
-    # Jeden Dienstag bis Samstag um 06:00 Uhr UTC (30 Min nach FINRA, um Last zu verteilen)
-    - cron: '0 6 * * 2-6'
+    # Jeden Dienstag bis Samstag um 07:52 Uhr UTC (09:52 Uhr MESZ)
+    - cron: '52 7 * * 2-6'
   workflow_dispatch: 
 
 jobs:

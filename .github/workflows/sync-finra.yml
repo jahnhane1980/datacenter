@@ -5,8 +5,8 @@ env:
 
 on:
   schedule:
-    # Jeden Dienstag bis Samstag um 05:30 Uhr UTC
-    - cron: '30 5 * * 2-6'
+    # Jeden Dienstag bis Samstag um 07:42 Uhr UTC (09:42 Uhr MESZ)
+    - cron: '42 7 * * 2-6'
   workflow_dispatch: 
 
 jobs:
