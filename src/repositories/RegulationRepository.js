@@ -22,14 +22,15 @@ export function createRegulationRepository() {
     /**
      * Speichert ein neues, bisher unbekanntes Dokument in der Datenbank.
      */
-    const insertDocument = async (documentNumber, publicationDate, title, pdfUrl) => {
+    const insertDocument = async (documentNumber, publicationDate, title, pdfUrl, abstractText) => {
         const { error } = await supabaseClient
             .from('regulation_alerts')
             .insert([{
                 document_number: documentNumber,
                 publication_date: publicationDate,
                 title: title,
-                pdf_url: pdfUrl
+                pdf_url: pdfUrl,
+                abstract: abstractText
             }]);
 
         if (error) {
@@ -37,8 +38,46 @@ export function createRegulationRepository() {
         }
     };
 
+    /**
+     * Holt die aktuell gültige Mindestreservequote (den neuesten Eintrag).
+     */
+    const getCurrentRatio = async () => {
+        const { data, error } = await supabaseClient
+            .from('reserve_requirements')
+            .select('ratio_percent')
+            .order('effective_date', { ascending: false })
+            .limit(1)
+            .single();
+
+        // Wenn die Tabelle unerwartet leer sein sollte, werfen wir einen Fehler, da wir den Init-Wert voraussetzen
+        if (error) {
+            throw new Error(`Fehler beim Abrufen der aktuellen Quote: ${error.message}`);
+        }
+
+        return data.ratio_percent;
+    };
+
+    /**
+     * Speichert eine neue Mindestreservequote nach einem Alarm.
+     */
+    const insertNewRatio = async (effectiveDate, ratioPercent, documentNumber) => {
+        const { error } = await supabaseClient
+            .from('reserve_requirements')
+            .insert([{
+                effective_date: effectiveDate,
+                ratio_percent: ratioPercent,
+                document_number: documentNumber
+            }]);
+
+        if (error) {
+            throw new Error(`Fehler beim Speichern der neuen Quote: ${error.message}`);
+        }
+    };
+
     return {
         documentExists,
-        insertDocument
+        insertDocument,
+        getCurrentRatio,
+        insertNewRatio
     };
 }
