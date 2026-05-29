@@ -10,9 +10,10 @@ export function createFredRepository() {
      * @param {number|null} fedBalance - Der Wert für WALCL
      * @param {number|null} btfpBalance - Der Wert für H41RESPPALDKNWW
      * @param {number|null} bankReservesFed - Der Wert für WRESBAL
+     * @param {number|null} sofrRate - Der Wert für SOFR
      * @throws {Error} Wenn der Upsert in der Supabase-Datenbank fehlschlägt.
      */
-    const upsertMacroData = async (observationDate, tgaBalance, rrpBalance, fedBalance, btfpBalance, bankReservesFed) => {
+    const upsertMacroData = async (observationDate, tgaBalance, rrpBalance, fedBalance, btfpBalance, bankReservesFed, sofrRate) => {
         const { error } = await supabaseClient
             .from('macro_liquidity')
             .upsert(
@@ -22,7 +23,8 @@ export function createFredRepository() {
                     rrp_balance: rrpBalance,
                     fed_balance: fedBalance,
                     btfp_balance: btfpBalance,
-                    bank_reserves_fed: bankReservesFed
+                    bank_reserves_fed: bankReservesFed,
+                    sofr_rate: sofrRate
                 }, 
                 { onConflict: 'observation_date' }
             );
