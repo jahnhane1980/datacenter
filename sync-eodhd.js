@@ -21,24 +21,66 @@ async function runDailySync() {
             ...dynamicStocks
         ];
 
-        // --- 1. SENTIMENT DAILY SYNC ---
-        const latestSentimentDate = await eodhdRepository.getLatestSentimentDate();
-        let sentimentStartDate;
+        // --- ROUND-ROBIN FILTER ---
+        console.log('Lade Sync-Queue für Round-Robin-Verfahren...');
+        const syncQueue = await eodhdRepository.getSyncQueue();
+        
+        // Map aufbauen für schnellen Timestamp-Zugriff beim Sortieren
+        const queueMap = new Map();
+        for (const item of syncQueue) {
+            queueMap.set(item.ticker, item.last_sync_at);
+        }
 
-        if (latestSentimentDate) {
-            // Buffer: Gehe 2 Tage vom letzten Eintrag zurück, um nachträgliche Updates aufzufangen
-            const d = new Date(latestSentimentDate);
+        // Ticker sortieren: Älteste Timestamps (oder 0, falls noch nie gesynct) nach oben
+        const sortedWatchlist = [...fullWatchlist].sort((a, b) => {
+            const timeA = queueMap.get(a) ? new Date(queueMap.get(a)).getTime() : 0;
+            const timeB = queueMap.get(b) ? new Date(queueMap.get(b)).getTime() : 0;
+            return timeA - timeB;
+        });
+
+        // Batch-Limit setzen, um die API zu schonen. Kann bei Bedarf angepasst werden.
+        const BATCH_SIZE = 5; 
+        const currentBatch = sortedWatchlist.slice(0, BATCH_SIZE);
+        console.log(`Round-Robin Batch für heute (${currentBatch.length} Ticker):`, currentBatch);
+
+
+        // --- 1. SENTIMENT DAILY SYNC ---
+        // Bestimme das älteste Datum exakt innerhalb des aktuellen Batches
+        let oldestBatchDate = null;
+
+        for (const ticker of currentBatch) {
+            const lastSync = queueMap.get(ticker);
+            if (lastSync) {
+                const d = new Date(lastSync);
+                if (!oldestBatchDate || d < oldestBatchDate) {
+                    oldestBatchDate = d;
+                }
+            } else {
+                // Fallback: Wenn ein Ticker noch nie in der Queue war, 7 Tage zurückgehen
+                const fallback = new Date();
+                fallback.setDate(fallback.getDate() - 7); // FEHLER BEHOBEN
+                if (!oldestBatchDate || fallback < oldestBatchDate) {
+                    oldestBatchDate = fallback;
+                }
+            }
+        }
+
+        let sentimentStartDate;
+        if (oldestBatchDate) {
+            // Buffer: Gehe 2 Tage vom ältesten Eintrag des Batches zurück, um nachträgliche Updates aufzufangen
+            const d = new Date(oldestBatchDate);
             d.setDate(d.getDate() - 2);
             sentimentStartDate = d.toISOString().split('T')[0];
-            console.log(`Letztes Sentiment: ${latestSentimentDate}. Hole Delta ab ${sentimentStartDate}...`);
+            console.log(`Ältestes Datum im aktuellen Batch: ${oldestBatchDate.toISOString().split('T')[0]}. Hole Delta ab ${sentimentStartDate}...`);
         } else {
             const fallbackDate = new Date();
             fallbackDate.setDate(fallbackDate.getDate() - 7);
             sentimentStartDate = fallbackDate.toISOString().split('T')[0];
-            console.log(`Kein letztes Sentiment gefunden. Fallback auf ${sentimentStartDate}...`);
+            console.log(`Kein Datum für Batch bestimmbar. Fallback auf ${sentimentStartDate}...`);
         }
 
-        const sentimentData = await eodhdService.fetchSentiments(fullWatchlist, sentimentStartDate);
+        // Wir nutzen hier nur noch den currentBatch für die Abfrage
+        const sentimentData = await eodhdService.fetchSentiments(currentBatch, sentimentStartDate);
         
         let sentimentSuccess = 0;
         let sentimentErrors = 0;
@@ -60,6 +102,11 @@ async function runDailySync() {
             }
         }
         console.log(`Sentiment Sync beendet. Erfolgreiche Upserts: ${sentimentSuccess}, Fehler: ${sentimentErrors}`);
+
+        // --- ROUND-ROBIN QUITTUNG ---
+        console.log('Aktualisiere Sync-Queue Timestamps für den heutigen Batch...');
+        await eodhdRepository.updateSyncQueueTimestamps(currentBatch);
+
 
         // --- 2. NEWS DAILY SYNC ---
         const latestNewsDate = await eodhdRepository.getLatestNewsDate();

@@ -53,8 +53,9 @@ export function createEodhdService(apiKey = process.env.EODHD_API_KEY) {
      * Holt die aggregierten Tages-Sentiments für eine Liste von Tickern.
      * @param {Array<string>} tickers - Array von Tickern, z.B. ['GSPC.IND', 'TLT.US']
      * @param {string} fromDate - Startdatum YYYY-MM-DD
+     * @param {string|null} toDate - Optionales Enddatum YYYY-MM-DD (Fallback: null für Abwärtskompatibilität)
      */
-    const fetchSentiments = async (tickers, fromDate) => {
+    const fetchSentiments = async (tickers, fromDate, toDate = null) => {
         // Verbindet das Array zu einem kommagetrennten String für die URL ('s=...')
         const tickerString = tickers.join(',');
 
@@ -63,6 +64,10 @@ export function createEodhdService(apiKey = process.env.EODHD_API_KEY) {
             s: tickerString,
             from: fromDate
         };
+
+        if (toDate) {
+            searchParams.to = toDate;
+        }
 
         try {
             const response = await ky.get(`${BASE_URL}/sentiments`, { searchParams }).json();
