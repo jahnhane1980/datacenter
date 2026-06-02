@@ -1,0 +1,33 @@
+name: Sync SEC Filings & Groq Radar
+
+on:
+  schedule:
+    # Läuft Dienstag bis Samstag um 04:15 UTC (deckt alle US-Handelstage ab)
+    - cron: '15 4 * * 2-6'
+  workflow_dispatch: # Erlaubt den manuellen Start über die GitHub-Oberfläche
+
+jobs:
+  sync-sec-data:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # Oder deine bevorzugte Node-Version
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Run Master Sync (FMP + SEC + Groq)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
+          FMP_API_KEY: ${{ secrets.FMP_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          DEBUG_SAVE_SNIPPETS: 'false' # In der Cloud auf false, um Logs sauber zu halten
+        run: node sync-sec-filings.js
