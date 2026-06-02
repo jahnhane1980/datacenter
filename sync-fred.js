@@ -23,15 +23,21 @@ async function runDailySync() {
             console.log(`Kein Eintrag gefunden. Fallback auf die letzten 14 Tage (ab ${startDate})...`);
         }
         
+        // Helper für künstliche Verzögerung (Pacing)
+        const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
         // Direkte Nutzung von fetchObservations für dynamisches Datum
-        const [tgaData, rrpData, fedData, btfpData, bankReservesData, sofrData] = await Promise.all([
-            fredService.fetchObservations(FRED_SERIES.TGA_BALANCE, startDate),
-            fredService.fetchObservations(FRED_SERIES.REVERSE_REPO, startDate),
-            fredService.fetchObservations(FRED_SERIES.FED_BALANCE_SHEET, startDate),
-            fredService.fetchObservations(FRED_SERIES.BANK_TERM_FUNDING_PROGRAM, startDate),
-            fredService.fetchObservations(FRED_SERIES.BANK_RESERVES_FED_WEEKLY, startDate),
-            fredService.fetchObservations(FRED_SERIES.SECURED_OVERNIGHT_FINANCING_RATE, startDate)
-        ]);
+        const tgaData = await fredService.fetchObservations(FRED_SERIES.TGA_BALANCE, startDate);
+        await delay(1000);
+        const rrpData = await fredService.fetchObservations(FRED_SERIES.REVERSE_REPO, startDate);
+        await delay(1000);
+        const fedData = await fredService.fetchObservations(FRED_SERIES.FED_BALANCE_SHEET, startDate);
+        await delay(1000);
+        const btfpData = await fredService.fetchObservations(FRED_SERIES.BANK_TERM_FUNDING_PROGRAM, startDate);
+        await delay(1000);
+        const bankReservesData = await fredService.fetchObservations(FRED_SERIES.BANK_RESERVES_FED_WEEKLY, startDate);
+        await delay(1000);
+        const sofrData = await fredService.fetchObservations(FRED_SERIES.SECURED_OVERNIGHT_FINANCING_RATE, startDate);
 
         console.log('Daten erfolgreich geladen. Führe Merge nach Datum durch...');
 

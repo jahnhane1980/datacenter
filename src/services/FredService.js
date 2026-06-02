@@ -32,7 +32,13 @@ export function createFredService(apiKey = process.env.FRED_API_KEY) {
         }
 
         try {
-            const response = await ky.get(BASE_URL, { searchParams }).json();
+            const response = await ky.get(BASE_URL, { 
+                searchParams,
+                retry: {
+                    limit: 3,
+                    statusCodes: [429]
+                }
+            }).json();
             return response.observations;
         } catch (error) {
             console.error(`Fehler beim Abrufen der FRED Serie ${seriesId}:`, error.message);
