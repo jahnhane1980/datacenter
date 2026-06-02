@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { createFiscalService, TREASURY_TERMS } from './src/services/FiscalService.js';
+import { createFiscalService, TREASURY_TYPES } from './src/services/FiscalService.js';
 import { createFiscalRepository } from './src/repositories/FiscalRepository.js';
 
 async function runFiscalBackfill() {
@@ -16,17 +16,16 @@ async function runFiscalBackfill() {
         // 2000 reicht völlig für 3-4 Jahre, selbst bei wöchentlichen Bills.
         const BACKFILL_LIMIT = 2000; 
 
-        console.log(`Hole Auktionsdaten ab dem ${startDate} (Limit pro Laufzeit: ${BACKFILL_LIMIT})...`);
+        console.log(`Hole Auktionsdaten ab dem ${startDate} (Limit pro Kategorie: ${BACKFILL_LIMIT})...`);
 
-        // Paralleles Abrufen aller historischen Daten
-        const [billsData, notes2yData, notes10yData, bonds20yData] = await Promise.all([
-            fiscalService.fetchAuctions(TREASURY_TERMS.BILL, startDate, BACKFILL_LIMIT),
-            fiscalService.fetchAuctions(TREASURY_TERMS.NOTE_2Y, startDate, BACKFILL_LIMIT),
-            fiscalService.fetchAuctions(TREASURY_TERMS.NOTE_10Y, startDate, BACKFILL_LIMIT),
-            fiscalService.fetchAuctions(TREASURY_TERMS.BOND_20Y, startDate, BACKFILL_LIMIT)
+        // Paralleles Abrufen aller generischen Wertpapier-Typen (umfasst alle Laufzeiten)
+        const [billsData, notesData, bondsData] = await Promise.all([
+            fiscalService.fetchAuctions(TREASURY_TYPES.BILL, startDate, BACKFILL_LIMIT),
+            fiscalService.fetchAuctions(TREASURY_TYPES.NOTE, startDate, BACKFILL_LIMIT),
+            fiscalService.fetchAuctions(TREASURY_TYPES.BOND, startDate, BACKFILL_LIMIT)
         ]);
 
-        const allAuctions = [...billsData, ...notes2yData, ...notes10yData, ...bonds20yData];
+        const allAuctions = [...billsData, ...notesData, ...bondsData];
         
         console.log(`${allAuctions.length} historische Auktionen gefunden. Starte Datenaufbereitung und Upsert...`);
 

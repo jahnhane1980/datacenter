@@ -6,7 +6,9 @@ export const FRED_SERIES = Object.freeze({
     TGA_BALANCE: 'WTREGEN',
     FED_BALANCE_SHEET: 'WALCL',
     BANK_RESERVES_FED_WEEKLY: 'WRESBAL',
-    SECURED_OVERNIGHT_FINANCING_RATE: 'SOFR'
+    SECURED_OVERNIGHT_FINANCING_RATE: 'SOFR',
+    DEPOSITS_ALL: 'DPSACBW027SBOG', // Korrigiert: Deposits, All Commercial Banks (Weekly)
+    DEMAND_DEPOSITS: 'WDDNS'        // Korrigiert: Demand Deposits (Weekly)
 });
 
 export function createFredService(apiKey = process.env.FRED_API_KEY) {

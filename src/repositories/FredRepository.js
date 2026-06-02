@@ -35,6 +35,38 @@ export function createFredRepository() {
     };
 
     /**
+     * Schreibt ein Array von formatierten Indikator-Werten in die normalisierte Struktur.
+     * @param {Array} valuesArray - Array von Objekten { indicator_id, observation_date, value }
+     */
+    const upsertMacroIndicatorValues = async (valuesArray) => {
+        if (!valuesArray || valuesArray.length === 0) return;
+
+        const { error } = await supabaseClient
+            .from('macro_indicator_values')
+            .upsert(valuesArray, { onConflict: 'indicator_id, observation_date' });
+
+        if (error) {
+            throw new Error(`Fehler beim Upsert in macro_indicator_values: ${error.message}`);
+        }
+    };
+
+    /**
+     * Holt das Lexikon aller definierten Makro-Indikatoren, um die FRED-Series-IDs auf interne IDs zu mappen.
+     * @returns {Promise<Array>} Array von { id, series_id }
+     */
+    const getMacroIndicatorDefinitions = async () => {
+        const { data, error } = await supabaseClient
+            .from('macro_indicator_definition')
+            .select('id, series_id');
+
+        if (error) {
+            throw new Error(`Fehler beim Abrufen der Makro-Definitionen: ${error.message}`);
+        }
+
+        return data || [];
+    };
+
+    /**
      * Holt das aktuellste (jüngste) observation_date aus der macro_liquidity Tabelle.
      * @returns {Promise<string|null>} Das Datum als String (YYYY-MM-DD) oder null, wenn leer.
      */
@@ -54,6 +86,8 @@ export function createFredRepository() {
 
     return {
         upsertMacroData,
+        upsertMacroIndicatorValues,
+        getMacroIndicatorDefinitions,
         getLatestObservationDate
     };
 }

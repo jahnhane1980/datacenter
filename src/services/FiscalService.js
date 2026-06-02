@@ -1,10 +1,9 @@
 import ky from 'ky';
 
-export const TREASURY_TERMS = Object.freeze({
-    BILL: 'Bill',         // Für T-Bills nutzen wir den security_type
-    NOTE_2Y: '2-Year',
-    NOTE_10Y: '10-Year',
-    BOND_20Y: '20-Year'
+export const TREASURY_TYPES = Object.freeze({
+    BILL: 'Bill',
+    NOTE: 'Note',
+    BOND: 'Bond'
 });
 
 export function createFiscalService() {
@@ -12,18 +11,14 @@ export function createFiscalService() {
 
     /**
      * Basis-Funktion zum Abrufen der Auktionsdaten.
-     * Unterscheidet automatisch, ob nach Typ (Bills) oder Laufzeit (Notes/Bonds) gefiltert werden muss.
-     * * @param {string} filterValue - Der Wert aus TREASURY_TERMS
+     * Filtert nun generisch nach dem Wertpapier-Typ (Bill, Note, Bond), um ALLE Laufzeiten zu erfassen.
+     * @param {string} securityType - Der Wert aus TREASURY_TYPES
      * @param {string} startDate - Format 'YYYY-MM-DD'
      * @param {number} limit - Anzahl der zurückgegebenen Datensätze
      */
-    const fetchAuctions = async (filterValue, startDate, limit = 50) => {
-        // Bills werden über den security_type gefiltert, der Rest über security_term
-        const isBill = filterValue === TREASURY_TERMS.BILL;
-        const filterKey = isBill ? 'security_type' : 'security_term';
-        
+    const fetchAuctions = async (securityType, startDate, limit = 50) => {
         const searchParams = {
-            filter: `${filterKey}:eq:${filterValue},auction_date:gte:${startDate}`,
+            filter: `security_type:eq:${securityType},auction_date:gte:${startDate}`,
             sort: '-auction_date',
             'page[size]': limit
         };
@@ -32,7 +27,7 @@ export function createFiscalService() {
             const response = await ky.get(BASE_URL, { searchParams }).json();
             return response.data; // Die Treasury API packt die Ergebnisse in das 'data' Array
         } catch (error) {
-            console.error(`Fehler beim Abrufen der Fiscal Data für ${filterValue}:`, error.message);
+            console.error(`Fehler beim Abrufen der Fiscal Data für ${securityType}:`, error.message);
             throw error;
         }
     };
@@ -40,12 +35,12 @@ export function createFiscalService() {
     /**
      * Bequemlichkeits-Funktion für den täglichen Sync (z.B. letzte 14 Tage)
      */
-    const getRecentAuctions = async (filterValue, daysBack = 14) => {
+    const getRecentAuctions = async (securityType, daysBack = 14) => {
         const date = new Date();
         date.setDate(date.getDate() - daysBack);
         const startDate = date.toISOString().split('T')[0];
         
-        return fetchAuctions(filterValue, startDate);
+        return fetchAuctions(securityType, startDate);
     };
 
     return {

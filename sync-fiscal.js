@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { createFiscalService, TREASURY_TERMS } from './src/services/FiscalService.js';
+import { createFiscalService, TREASURY_TYPES } from './src/services/FiscalService.js';
 import { createFiscalRepository } from './src/repositories/FiscalRepository.js';
 
 async function runFiscalSync() {
@@ -13,16 +13,15 @@ async function runFiscalSync() {
         const daysBack = 14;
         console.log(`Hole Auktionsdaten der letzten ${daysBack} Tage...`);
 
-        // Paralleles Abrufen aller relevanten Laufzeiten
-        const [billsData, notes2yData, notes10yData, bonds20yData] = await Promise.all([
-            fiscalService.getRecentAuctions(TREASURY_TERMS.BILL, daysBack),
-            fiscalService.getRecentAuctions(TREASURY_TERMS.NOTE_2Y, daysBack),
-            fiscalService.getRecentAuctions(TREASURY_TERMS.NOTE_10Y, daysBack),
-            fiscalService.getRecentAuctions(TREASURY_TERMS.BOND_20Y, daysBack)
+        // Paralleles Abrufen aller generischen Wertpapier-Typen (umfasst alle Laufzeiten)
+        const [billsData, notesData, bondsData] = await Promise.all([
+            fiscalService.getRecentAuctions(TREASURY_TYPES.BILL, daysBack),
+            fiscalService.getRecentAuctions(TREASURY_TYPES.NOTE, daysBack),
+            fiscalService.getRecentAuctions(TREASURY_TYPES.BOND, daysBack)
         ]);
 
         // Führe alle Arrays zu einem zusammen für die Verarbeitung
-        const allAuctions = [...billsData, ...notes2yData, ...notes10yData, ...bonds20yData];
+        const allAuctions = [...billsData, ...notesData, ...bondsData];
         
         console.log(`${allAuctions.length} Auktionen gefunden. Starte Datenaufbereitung und Upsert...`);
 
