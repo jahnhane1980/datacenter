@@ -78,10 +78,72 @@ export function createEodhdRepository() {
         return data && data.length > 0 ? data[0].published_at.split('T')[0] : null;
     };
 
+    /**
+     * Holt die vollständige Sync-Queue aus der Datenbank.
+     */
+    const getSyncQueue = async () => {
+        const { data, error } = await supabaseClient
+            .from('eodhd_sync_queue')
+            .select('*')
+            .order('last_sync_at', { ascending: true, nullsFirst: true });
+
+        if (error) throw new Error(`Fehler beim Abrufen der Sync-Queue: ${error.message}`);
+        return data || [];
+    };
+
+    /**
+     * Aktualisiert den last_sync_at Timestamp für eine Liste von Tickern (Upsert).
+     * @param {Array<string>} tickers - Array von Ticker-Symbolen
+     */
+    const updateSyncQueueTimestamps = async (tickers) => {
+        if (!tickers || tickers.length === 0) return;
+
+        const now = new Date().toISOString();
+        
+        // Supabase erlaubt Bulk-Upserts, indem man ein Array von Objekten übergibt
+        const upsertData = tickers.map(ticker => ({
+            ticker: ticker,
+            last_sync_at: now
+        }));
+
+        const { error } = await supabaseClient
+            .from('eodhd_sync_queue')
+            .upsert(upsertData, { onConflict: 'ticker' });
+
+        if (error) {
+            throw new Error(`Fehler beim Aktualisieren der Sync-Queue: ${error.message}`);
+        }
+    };
+
+    /**
+     * Ermittelt exakte Datenlücken für einen Ticker (RPC Aufruf).
+     * @param {string} ticker - Das Ticker-Symbol
+     * @param {string} startDate - Startdatum YYYY-MM-DD
+     * @param {boolean} excludeWeekends - True für Aktien, False für Krypto
+     * @returns {Promise<Array<string>>} Array von fehlenden Daten (YYYY-MM-DD)
+     */
+    const getMissingSentimentDates = async (ticker, startDate, excludeWeekends) => {
+        const { data, error } = await supabaseClient.rpc('get_missing_sentiment_dates', {
+            target_ticker: ticker,
+            start_date: startDate,
+            exclude_weekends: excludeWeekends
+        });
+
+        if (error) {
+            throw new Error(`Fehler beim Abrufen der Lücken für ${ticker}: ${error.message}`);
+        }
+
+        // Mappt das Rückgabe-Objekt der DB zu einem sauberen String-Array
+        return data ? data.map(row => row.missing_date) : [];
+    };
+
     return {
         upsertDailySentiment,
         upsertNewsArticle,
         getLatestSentimentDate,
-        getLatestNewsDate
+        getLatestNewsDate,
+        getSyncQueue,
+        updateSyncQueueTimestamps,
+        getMissingSentimentDates
     };
 }
