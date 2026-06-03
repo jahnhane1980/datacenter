@@ -39,7 +39,7 @@ async function runDailySync() {
         });
 
         // Batch-Limit setzen, um die API zu schonen. Kann bei Bedarf angepasst werden.
-        const BATCH_SIZE = 5; 
+        const BATCH_SIZE = 2; 
         const currentBatch = sortedWatchlist.slice(0, BATCH_SIZE);
         console.log(`Round-Robin Batch für heute (${currentBatch.length} Ticker):`, currentBatch);
 
