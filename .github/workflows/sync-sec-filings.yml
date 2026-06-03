@@ -17,7 +17,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20' # Oder deine bevorzugte Node-Version
+          node-version: '22.x' # Auf Version 22 angehoben, um nativen WebSocket-Support zu garantieren
 
       - name: Install Dependencies
         run: npm install
