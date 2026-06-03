@@ -1,4 +1,4 @@
-name: EODHD News & Sentiment Sync
+name: Sentiment & News Sync (Finnhub)
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -24,9 +24,12 @@ jobs:
       - name: Pakete installieren
         run: npm install
 
-      - name: EODHD Sync ausführen
-        run: node sync-eodhd.js
+      - name: Sentiment NPM-Paket installieren
+        run: npm install sentiment
+
+      - name: Sentiment & News Sync ausführen
+        run: node sync-sentiment-news.js
         env:
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
-          EODHD_API_KEY: ${{ secrets.EODHD_API_KEY }}
+          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}

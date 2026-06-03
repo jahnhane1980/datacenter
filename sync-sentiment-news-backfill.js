@@ -1,19 +1,22 @@
 import 'dotenv/config';
 import Holidays from 'date-holidays';
-import { createEodhdService, EODHD_STATIC_WATCHLIST } from './src/services/EodhdService.js';
-import { createEodhdRepository } from './src/repositories/EodhdRepository.js';
+import { createSentimentNewsService, SENTIMENT_STATIC_WATCHLIST } from './src/services/SentimentNewsService.js';
+import { createSentimentNewsRepository } from './src/repositories/SentimentNewsRepository.js';
 import { createTickerRepository } from './src/repositories/TickerRepository.js';
 
+// Hilfsfunktion für den präventiven Delay
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
 async function runBackfill() {
-    console.log('Starte EODHD Backfill (News & Sentiments) als chirurgischen Lücken-Stopfer...');
+    console.log('Starte Finnhub Backfill (Sentiments) als chirurgischen Lücken-Stopfer...');
 
     // Feiertags-Kalender für die USA initialisieren
     const holidays = new Holidays('US');
     const BACKFILL_TARGET_DATE = '2025-05-01';
 
     try {
-        const eodhdService = createEodhdService();
-        const eodhdRepository = createEodhdRepository();
+        const sentimentNewsService = createSentimentNewsService();
+        const sentimentNewsRepository = createSentimentNewsRepository();
         const tickerRepository = createTickerRepository();
 
         console.log('Lade dynamische Typ-3-Aktien aus der Datenbank...');
@@ -21,12 +24,12 @@ async function runBackfill() {
         const dynamicStocks = type3Tickers.map(t => t.name.includes('.') ? t.name : `${t.name}.US`);
 
         const fullWatchlist = [
-            ...EODHD_STATIC_WATCHLIST.MACRO,
-            ...EODHD_STATIC_WATCHLIST.CRYPTO,
+            ...SENTIMENT_STATIC_WATCHLIST.MACRO,
+            ...SENTIMENT_STATIC_WATCHLIST.CRYPTO,
             ...dynamicStocks
         ];
 
-        console.log(`Watchlist bereit: ${fullWatchlist.length} Ticker. Starte Einzelprüfung...`);
+        console.log(`Watchlist bereit: ${fullWatchlist.length} Ticker. Starte Einzelprüfung mit 1.5s Rate-Limit-Bremse...`);
 
         // --- 1. SENTIMENT BACKFILL (CHIRURGISCH) ---
         let rateLimitReached = false;
@@ -34,10 +37,10 @@ async function runBackfill() {
         for (const ticker of fullWatchlist) {
             if (rateLimitReached) break; // Stoppt weitere Ticker, falls Limit voll
 
-            const isCrypto = EODHD_STATIC_WATCHLIST.CRYPTO.includes(ticker) || ticker.includes('BTC');
+            const isCrypto = SENTIMENT_STATIC_WATCHLIST.CRYPTO.includes(ticker) || ticker.includes('BTC');
             
             // Holt grobe Lücken (Wochenenden bei Nicht-Krypto bereits rausgefiltert)
-            const rawMissingDates = await eodhdRepository.getMissingSentimentDates(ticker, BACKFILL_TARGET_DATE, !isCrypto);
+            const rawMissingDates = await sentimentNewsRepository.getMissingSentimentDates(ticker, BACKFILL_TARGET_DATE, !isCrypto);
 
             // Feinfilter: Feiertage bei Nicht-Krypto entfernen
             const validMissingDates = rawMissingDates.filter(dateStr => {
@@ -64,32 +67,33 @@ async function runBackfill() {
             console.log(`[${ticker}] ${validMissingDates.length} fehlende Tage identifiziert. Lade Lücken-Block (${fromDate} bis ${toDate})...`);
 
             try {
-                const sentimentData = await eodhdService.fetchSentiments([ticker], fromDate, toDate);
+                const sentimentData = await sentimentNewsService.fetchSentiments([ticker], fromDate, toDate);
                 
                 let sentimentSuccess = 0;
                 let sentimentErrors = 0;
 
-                for (const [resTicker, daysArray] of Object.entries(sentimentData)) {
-                    const dayDataArray = Array.isArray(daysArray) ? daysArray : [];
-                    for (const dayData of dayDataArray) {
-                        try {
-                            await eodhdRepository.upsertDailySentiment(
-                                dayData.date,
-                                resTicker,
-                                dayData.count,
-                                dayData.normalized
-                            );
-                            sentimentSuccess++;
-                        } catch (err) {
-                            sentimentErrors++;
-                        }
+                const daysArray = sentimentData[ticker] || [];
+                for (const dayData of daysArray) {
+                    try {
+                        await sentimentNewsRepository.upsertDailySentiment(
+                            dayData.date,
+                            ticker,
+                            dayData.count,
+                            dayData.normalized
+                        );
+                        sentimentSuccess++;
+                    } catch (err) {
+                        sentimentErrors++;
                     }
                 }
                 console.log(`[${ticker}] Upserts erfolgreich: ${sentimentSuccess}, Fehler: ${sentimentErrors}`);
 
+                // Präventive Bremse, um unter 60 Requests pro Minute zu bleiben
+                await delay(1500);
+
             } catch (error) {
-                // Graceful Exit bei Limit-Ausschöpfung (Status 402)
-                if (error.response && error.response.status === 402) {
+                // Graceful Exit bei Limit-Ausschöpfung (Finnhub nutzt oft 429 Too Many Requests)
+                if (error.response && (error.response.status === 429 || error.response.status === 402)) {
                     const tomorrow = new Date();
                     tomorrow.setDate(tomorrow.getDate() + 1);
                     console.warn(`\n[!] Rate Limit für heute erschöpft. Bitte erst wieder am ${tomorrow.toISOString().split('T')[0]} ausführen.`);
@@ -97,19 +101,20 @@ async function runBackfill() {
                     break; 
                 } else {
                     console.error(`Fehler beim API-Abruf für ${ticker}:`, error.message);
+                    // Nach einem Fehler auch kurz pausieren, bevor der nächste Ticker angefragt wird
+                    await delay(1500);
                 }
             }
         }
 
         // --- 2. NEWS BACKFILL (MIT GRACEFUL EXIT) ---
+        // DESIGN-HINWEIS: Finnhub General News unterstützt historisches Backfilling nicht.
+        // Dieser Block ruft lediglich die aktuellsten News ab.
         if (!rateLimitReached) {
-            const latestNewsDate = await eodhdRepository.getLatestNewsDate();
-            const newsStartDate = latestNewsDate ? latestNewsDate : BACKFILL_TARGET_DATE;
-
-            console.log(`\nLade historische News ab ${newsStartDate} (Limit: 50, Tag: macroeconomics)...`);
+            console.log(`\nLade General News (Achtung: Finnhub liefert hier nur aktuellste Daten, kein echtes Backfill möglich)...`);
             
             try {
-                const newsData = await eodhdService.fetchNews('macroeconomics', 50, 0, newsStartDate);
+                const newsData = await sentimentNewsService.fetchNews('general');
                 
                 let newsSuccess = 0;
                 let newsErrors = 0;
@@ -120,7 +125,7 @@ async function runBackfill() {
                             ? article.sentiment.polarity 
                             : null;
 
-                        await eodhdRepository.upsertNewsArticle(
+                        await sentimentNewsRepository.upsertNewsArticle(
                             article.link,
                             article.date, 
                             article.title,
@@ -132,22 +137,20 @@ async function runBackfill() {
                         newsErrors++;
                     }
                 }
-                console.log(`News Backfill beendet. Erfolgreich: ${newsSuccess}, Fehler: ${newsErrors}`);
+                console.log(`News Durchlauf beendet. Erfolgreich: ${newsSuccess}, Fehler: ${newsErrors}`);
             } catch (error) {
-                if (error.response && error.response.status === 402) {
-                    const tomorrow = new Date();
-                    tomorrow.setDate(tomorrow.getDate() + 1);
-                    console.warn(`[!] Rate Limit für News erschöpft. Bitte erst wieder am ${tomorrow.toISOString().split('T')[0]} ausführen.`);
+                if (error.response && (error.response.status === 429 || error.response.status === 402)) {
+                    console.warn(`[!] Rate Limit für News erschöpft.`);
                 } else {
                     console.error(`Fehler beim News-Abruf:`, error.message);
                 }
             }
         }
 
-        console.log('\nGesamter EODHD Backfill-Durchlauf beendet!');
+        console.log('\nGesamter Finnhub Backfill-Durchlauf beendet!');
 
     } catch (error) {
-        console.error('Kritischer Fehler im EODHD Backfill-Skript:', error);
+        console.error('Kritischer Fehler im Finnhub Backfill-Skript:', error);
         process.exit(1);
     }
 }

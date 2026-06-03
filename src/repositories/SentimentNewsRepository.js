@@ -1,6 +1,6 @@
 import { supabaseClient } from '../core/SupabaseClient.js';
 
-export function createEodhdRepository() {
+export function createSentimentNewsRepository() {
     
     /**
      * Schreibt einen täglichen Sentiment-Score in die Datenbank.
