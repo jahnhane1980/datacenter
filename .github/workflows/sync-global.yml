@@ -1,0 +1,32 @@
+name: Global Macro & FX Sync
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  schedule:
+    # Jeden Dienstag bis Samstag um 08:02 Uhr UTC
+    - cron: '2 8 * * 2-6'
+  workflow_dispatch: 
+
+jobs:
+  run-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code auschecken
+        uses: actions/checkout@v4
+
+      - name: Node.js 22 einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+
+      - name: Pakete installieren
+        run: npm install
+
+      - name: Global Macro Sync ausführen
+        run: node sync-global.js
+        env:
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
