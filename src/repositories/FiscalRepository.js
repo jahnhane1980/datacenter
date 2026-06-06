@@ -3,45 +3,63 @@ import { supabaseClient } from '../core/SupabaseClient.js';
 export function createFiscalRepository() {
     /**
      * Erstellt oder aktualisiert einen Auktions-Datensatz.
-     * Nutzt den upsert-Mechanismus von Supabase auf Basis des Composite Primary Keys 'auction_date, security_term'.
-     * * @param {string} auctionDate - Format 'YYYY-MM-DD'
+     * Nutzt den upsert-Mechanismus von Supabase auf Basis des Primary Keys 'cusip'.
+     * @param {string} auctionDate - Format 'YYYY-MM-DD'
+     * @param {string} issueDate - Format 'YYYY-MM-DD' (Tag des Geldflusses ins TGA)
+     * @param {string} maturityDate - Format 'YYYY-MM-DD' (Tag der Rückzahlung)
      * @param {string} securityType - 'Bill', 'Note', 'Bond' etc.
      * @param {string} securityTerm - '4-Week', '10-Year' etc.
      * @param {string} cusip - Eindeutige Wertpapierkennung
      * @param {number|null} bidToCoverRatio - Nachfrage-Indikator
      * @param {number|null} highYield - Höchste Rendite
-     * @param {number|null} totalTendered - Gebotsvolumen
-     * @param {number|null} totalAccepted - Zuteilungsvolumen
+     * @param {number|null} offeringAmount - Ursprünglich geplantes Auktionsvolumen
+     * @param {number|null} totalTendered - Gebotsvolumen (Gesamt)
+     * @param {number|null} totalAccepted - Zuteilungsvolumen (Gesamt)
+     * @param {number|null} primaryDealerAccepted - Von Banken (Market Makern) aufgesaugtes Volumen
+     * @param {number|null} directBidderAccepted - Von inländischen Fonds/Investoren gekauftes Volumen
+     * @param {number|null} indirectBidderAccepted - Von ausländischen Investoren/Zentralbanken gekauftes Volumen
      * @throws {Error} Wenn der Upsert fehlschlägt.
      */
     const upsertAuctionData = async (
         auctionDate, 
+        issueDate,
+        maturityDate,
         securityType, 
         securityTerm, 
         cusip, 
         bidToCoverRatio, 
-        highYield, 
+        highYield,
+        offeringAmount,
         totalTendered, 
-        totalAccepted
+        totalAccepted,
+        primaryDealerAccepted,
+        directBidderAccepted,
+        indirectBidderAccepted
     ) => {
         const { error } = await supabaseClient
             .from('treasury_auctions')
             .upsert(
                 { 
                     auction_date: auctionDate,
+                    issue_date: issueDate,
+                    maturity_date: maturityDate,
                     security_type: securityType,
                     security_term: securityTerm,
                     cusip: cusip,
                     bid_to_cover_ratio: bidToCoverRatio,
                     high_yield: highYield,
+                    offering_amount: offeringAmount,
                     total_tendered: totalTendered,
-                    total_accepted: totalAccepted
+                    total_accepted: totalAccepted,
+                    primary_dealer_accepted: primaryDealerAccepted,
+                    direct_bidder_accepted: directBidderAccepted,
+                    indirect_bidder_accepted: indirectBidderAccepted
                 }, 
-                { onConflict: 'auction_date, security_term' }
+                { onConflict: 'cusip' }
             );
 
         if (error) {
-            throw new Error(`Fehler beim Upsert in treasury_auctions (Term: ${securityTerm}, Date: ${auctionDate}): ${error.message}`);
+            throw new Error(`Fehler beim Upsert in treasury_auctions (CUSIP: ${cusip}, Date: ${auctionDate}): ${error.message}`);
         }
     };
 

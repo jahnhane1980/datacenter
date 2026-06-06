@@ -1,0 +1,32 @@
+name: Sync Treasury QRA Estimates
+
+on:
+  schedule:
+    # Läuft Dienstag bis Samstag um 06:00 UTC
+    # (Puffer von fast 2 Stunden nach dem SEC-Sync, um Groq Rate-Limits zu vermeiden)
+    - cron: '0 6 * * 2-6'
+  workflow_dispatch: 
+
+jobs:
+  sync-qra-data:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Run QRA Sync (Treasury + Groq AI)
+        env:
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          DEBUG_SAVE_SNIPPETS: 'false'
+        run: node sync-qra.js
