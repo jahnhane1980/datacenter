@@ -1,0 +1,10 @@
+{
+  "engine": {
+    "timeout_ms": 30000,
+    "max_retries": 0
+  },
+  "agent": {
+    "auto_apply_fixes": false,
+    "review_mode": true
+  }
+}
