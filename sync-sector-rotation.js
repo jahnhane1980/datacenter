@@ -78,7 +78,7 @@ async function runDailySectorSync() {
         console.log('Lade partielle Historie für SPY und ETFs in den RAM...');
         
         for (const ticker of [spyTicker, ...etfsToAnalyze]) {
-            const candles = await candleRepo.getCandlesSince('daily_candles', ticker.id, historyStartTimestamp);
+            const candles = await candleRepo.getDailyCandlesSince(ticker.id, historyStartTimestamp);
             if (candles && candles.length > 70) {
                 marketData[ticker.name] = candles;
             } else if (ticker.name === 'SPY') {

@@ -33,7 +33,7 @@ export class SyncManager {
             console.log(`\nVerarbeite Daily für ${ticker.name} (Typ: ${ticker.ticker_typ_id})...`);
             
             try {
-                const latestTimestamp = await this.candleRepository.getLatestTimestamp('daily_candles', ticker.id);
+                const latestTimestamp = await this.candleRepository.getLatestDailyTimestamp(ticker.id);
                 
                 let fromDate;
                 let isBackfill = false;
@@ -71,7 +71,7 @@ export class SyncManager {
                 await this.polygonIoService.fetchHistoricalData(
                     ticker.name, 1, 'day', fromDateStr, toDateStr,
                     async (chunk) => {
-                        await this.candleRepository.upsertCandles('daily_candles', ticker.id, chunk);
+                        await this.candleRepository.upsertDailyCandles(ticker.id, chunk);
                     }
                 );
 
@@ -100,7 +100,7 @@ export class SyncManager {
         for (const ticker of tickers) {
             console.log(`\nVerarbeite M5 für ${ticker.name}...`);
             try {
-                const latestTimestamp = await this.candleRepository.getLatestTimestamp('m5_candles', ticker.id);
+                const latestTimestamp = await this.candleRepository.getLatestM5Timestamp(ticker.id);
                 
                 let fromDate;
                 let isBackfill = false;
@@ -136,7 +136,7 @@ export class SyncManager {
                 await this.polygonIoService.fetchHistoricalData(
                     ticker.name, 5, 'minute', fromDateStr, toDateStr,
                     async (chunk) => {
-                        await this.candleRepository.upsertCandles('m5_candles', ticker.id, chunk);
+                        await this.candleRepository.upsertM5Candles(ticker.id, chunk);
                     }
                 );
 
