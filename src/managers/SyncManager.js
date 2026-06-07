@@ -1,3 +1,5 @@
+import { SYNC_JOBS } from '../repositories/TickerRepository.js';
+
 export class SyncManager {
     constructor(tickerRepository, candleRepository, polygonIoService) {
         this.tickerRepository = tickerRepository;
@@ -12,14 +14,7 @@ export class SyncManager {
     async runDailySync(isMarketOpen = true) {
         console.log('=== Starte Daily Sync ===');
         
-        // Für EOD-Kerzen brauchen wir Aktien (3) UND ETFs (4) für unsere Makro-Indikatoren.
-        // Krypto (1) schließen wir hier aus, das macht später das Bitget-Skript.
-        const allTickers = await this.tickerRepository.getAllTickers();
-
-        // FIX: Kugelsicherer Cast zu Number, falls Supabase einen String liefert
-        const tickers = allTickers ? allTickers.filter(t => 
-            Number(t.ticker_typ_id) === 3 || Number(t.ticker_typ_id) === 4
-        ) : [];
+        const tickers = await this.tickerRepository.getTickersForJob(SYNC_JOBS.DAILY);
         
         if (!tickers || tickers.length === 0) {
             console.log('Keine relevanten Ticker (Aktien/ETFs) in der Datenbank gefunden.');
@@ -85,9 +80,7 @@ export class SyncManager {
     async runM5Sync(isMarketOpen = true) {
         console.log('=== Starte M5 Sync ===');
         
-        // M5 (Intraday) ist ein reines Aktien-Spiel. ETFs interessieren uns hier nicht.
-        // Wir filtern direkt über das Repository auf Typ 3 (STOCK).
-        const tickers = await this.tickerRepository.getAllTickers(3);
+        const tickers = await this.tickerRepository.getTickersForJob(SYNC_JOBS.M5);
         
         if (!tickers || tickers.length === 0) {
             console.log('Keine Aktien (Typ 3) in der Datenbank gefunden.');

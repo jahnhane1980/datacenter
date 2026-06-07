@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { createTickerRepository } from './src/repositories/TickerRepository.js';
+import { createTickerRepository, SYNC_JOBS } from './src/repositories/TickerRepository.js';
 import { FinraRepository } from './src/repositories/FinraRepository.js';
 import { FinraService } from './src/services/FinraService.js';
 
@@ -53,10 +53,10 @@ async function syncFinraShortVolumeBackfill() {
     const finraRepo = new FinraRepository();
     const finraService = new FinraService();
 
-    // 1. Ticker aus der DB laden
-    const tickers = await tickerRepo.getAllTickers();
+    // 1. Ticker aus der DB laden (Job-gesteuert)
+    const tickers = await tickerRepo.getTickersForJob(SYNC_JOBS.SHORT_VOLUME);
     if (!tickers || tickers.length === 0) {
-        console.log('Keine Ticker für den Vergleich in der DB gefunden.');
+        console.log('Keine Ticker für SHORT_VOLUME in der DB gefunden.');
         return;
     }
 

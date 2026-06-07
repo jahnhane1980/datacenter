@@ -18,17 +18,17 @@ async function runEarningsBackfill() {
 
     try {
         const { supabaseClient } = await import('./src/core/SupabaseClient.js');
-        const { createTickerRepository } = await import('./src/repositories/TickerRepository.js');
+        const { createTickerRepository, SYNC_JOBS } = await import('./src/repositories/TickerRepository.js');
         const { EventRepository } = await import('./src/repositories/EventRepository.js');
 
         const tickerRepo = createTickerRepository();
         const eventRepo = new EventRepository(supabaseClient);
 
-        console.log('Lade Aktien (Typ 3) aus der Datenbank...');
-        const allTickers = await tickerRepo.getAllTickers(3);
+        console.log('Lade Ticker für EVENTS aus der Datenbank...');
+        const allTickers = await tickerRepo.getTickersForJob(SYNC_JOBS.EVENTS);
 
         if (!allTickers || allTickers.length === 0) {
-            console.log('Keine Aktien gefunden.');
+            console.log('Keine Ticker für EVENTS gefunden.');
             return;
         }
 

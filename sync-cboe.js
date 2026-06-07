@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { createTickerRepository } from './src/repositories/TickerRepository.js';
+import { createTickerRepository, SYNC_JOBS } from './src/repositories/TickerRepository.js';
 import { CboeRepository } from './src/repositories/CboeRepository.js';
 import { CboeService } from './src/services/CboeService.js';
 
@@ -19,10 +19,10 @@ async function syncCboeOptions() {
     const cboeRepo = new CboeRepository(); 
     const cboeService = new CboeService();
 
-    // GEFILTERT AUF TYP 3: STOCK
-    const tickers = await tickerRepo.getAllTickers(3);
+    // DIE NEUE ARCHITEKTUR: Hole alle Ticker, die in der config-Tabelle für OPTIONS abonniert sind
+    const tickers = await tickerRepo.getTickersForJob(SYNC_JOBS.OPTIONS);
     if (!tickers || tickers.length === 0) {
-        console.log('Keine Ticker (Typ: STOCK) für den Sync gefunden.');
+        console.log('Keine Ticker für OPTIONS konfiguriert.');
         return;
     }
 

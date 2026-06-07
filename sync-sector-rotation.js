@@ -35,7 +35,7 @@ async function runDailySectorSync() {
     try {
         // Dynamischer Import nach dotenv
         const { supabaseClient } = await import('./src/core/SupabaseClient.js');
-        const { createTickerRepository } = await import('./src/repositories/TickerRepository.js');
+        const { createTickerRepository, SYNC_JOBS } = await import('./src/repositories/TickerRepository.js');
         const { CandleRepository } = await import('./src/repositories/CandleRepository.js');
         const { SectorRotationRepository } = await import('./src/repositories/SectorRotationRepository.js');
 
@@ -64,12 +64,12 @@ async function runDailySectorSync() {
             process.exit(1);
         }
 
-        // 2. Relevante Ticker laden (Typ 4 = ETFs + SPY)
-        const allTickers = await tickerRepo.getAllTickers(4);
-        if (!allTickers || allTickers.length === 0) throw new Error('Keine ETFs gefunden.');
+        // 2. Relevante Ticker laden (Job-gesteuert)
+        const allTickers = await tickerRepo.getTickersForJob(SYNC_JOBS.SECTOR_ROTATION);
+        if (!allTickers || allTickers.length === 0) throw new Error('Keine Ticker für SECTOR_ROTATION gefunden.');
         
         const spyTicker = allTickers.find(t => t.name === 'SPY');
-        if (!spyTicker) throw new Error('SPY fehlt in der Datenbank!');
+        if (!spyTicker) throw new Error('SPY fehlt in der geladenen SECTOR_ROTATION Konfiguration!');
 
         const etfsToAnalyze = allTickers.filter(t => Object.keys(V_FACTORS).includes(t.name));
 

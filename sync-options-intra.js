@@ -11,7 +11,7 @@ async function runIntradaySync() {
     try {
         // 1. Zwingend dynamischer Import NACHDEM dotenv geladen ist
         const { supabaseClient } = await import('./src/core/SupabaseClient.js');
-        const { createTickerRepository } = await import('./src/repositories/TickerRepository.js');
+        const { createTickerRepository, SYNC_JOBS } = await import('./src/repositories/TickerRepository.js');
         const { OptionRepository } = await import('./src/repositories/OptionRepository.js');
 
         // 2. Den Supabase-Client sauber in die Konstruktoren injizieren
@@ -19,10 +19,10 @@ async function runIntradaySync() {
         const optionRepo = new OptionRepository(supabaseClient);
         const alphaVantageService = new AlphaVantageOptionService();
 
-        // FIX: Hole ab sofort NUR NOCH Ticker vom Typ 3 (STOCK)
-        const tickers = await tickerRepo.getAllTickers(3);
+        // DIE NEUE ARCHITEKTUR: Hole alle Ticker, die in der config-Tabelle für OPTIONS abonniert sind
+        const tickers = await tickerRepo.getTickersForJob(SYNC_JOBS.OPTIONS);
         if (!tickers || tickers.length === 0) {
-            console.warn('[OPTIONS-INTRA] Keine STOCK-Ticker registriert. Breche ab.');
+            console.warn('[OPTIONS-INTRA] Keine Ticker für OPTIONS registriert. Breche ab.');
             return;
         }
 

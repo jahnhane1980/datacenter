@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createTickerRepository } from '../../src/repositories/TickerRepository.js';
+import { createTickerRepository, SYNC_JOBS } from '../../src/repositories/TickerRepository.js';
 import { supabaseClient } from '../../src/core/SupabaseClient.js';
 
 // Mocken des globalen Supabase-Client Moduls
@@ -13,6 +13,12 @@ vi.mock('../../src/core/SupabaseClient.js', () => {
 
 describe('TickerRepository', () => {
     
+    it('sollte das SYNC_JOBS Enum korrekt exportieren und einfrieren', () => {
+        expect(SYNC_JOBS).toBeDefined();
+        expect(SYNC_JOBS.DAILY).toBe('DAILY');
+        expect(Object.isFrozen(SYNC_JOBS)).toBe(true);
+    });
+
     it('sollte alle Ticker aus der Datenbank abrufen', async () => {
         // ARRANGE (Vorbereitung)
         const mockData = [{ id: 1, name: 'AAPL' }, { id: 2, name: 'TSLA' }];
@@ -47,4 +53,56 @@ describe('TickerRepository', () => {
         await expect(repository.getAllTickers()).rejects.toThrow('[TickerRepository] Fehler beim Abrufen der Ticker: Datenbank offline');
     });
 
-});
+    it('sollte konfigurierte Ticker für einen bestimmten Job abrufen', async () => {
+        // ARRANGE
+        const mockConfigRows = [
+            { ticker_id: 1, ticker: { id: 1, name: 'AAPL', ticker_typ_id: 3 } },
+            { ticker_id: 2, ticker: { id: 2, name: 'TSLA', ticker_typ_id: 3 } }
+        ];
+
+        const selectMock = vi.fn().mockReturnThis();
+        const eqMock1 = vi.fn().mockReturnThis();
+        const eqMock2 = vi.fn().mockResolvedValue({ data: mockConfigRows, error: null });
+
+        vi.mocked(supabaseClient.from).mockReturnValue({
+            select: selectMock
+        });
+        selectMock.mockReturnValue({ eq: eqMock1 });
+        eqMock1.mockReturnValue({ eq: eqMock2 });
+
+        const repository = createTickerRepository();
+
+        // ACT
+        const result = await repository.getTickersForJob(SYNC_JOBS.DAILY);
+
+        // ASSERT
+        expect(supabaseClient.from).toHaveBeenCalledWith('ticker_data_config');
+        expect(selectMock).toHaveBeenCalledWith(expect.stringContaining('ticker('));
+        expect(eqMock1).toHaveBeenCalledWith('sync_type', SYNC_JOBS.DAILY);
+        expect(eqMock2).toHaveBeenCalledWith('is_active', true);
+        expect(result).toEqual([
+            { id: 1, name: 'AAPL', ticker_typ_id: 3 },
+            { id: 2, name: 'TSLA', ticker_typ_id: 3 }
+        ]);
+    });
+
+    it('sollte einen Fehler werfen, wenn getTickersForJob fehlschlägt', async () => {
+        // ARRANGE
+        const selectMock = vi.fn().mockReturnThis();
+        const eqMock1 = vi.fn().mockReturnThis();
+        const eqMock2 = vi.fn().mockResolvedValue({ data: null, error: { message: 'DB down' } });
+
+        vi.mocked(supabaseClient.from).mockReturnValue({
+            select: selectMock
+        });
+        selectMock.mockReturnValue({ eq: eqMock1 });
+        eqMock1.mockReturnValue({ eq: eqMock2 });
+
+        const repository = createTickerRepository();
+
+        // ACT & ASSERT
+        await expect(repository.getTickersForJob(SYNC_JOBS.DAILY)).rejects.toThrow('[TickerRepository] Fehler in getTickersForJob(DAILY): DB down');
+    });
+
+});
+

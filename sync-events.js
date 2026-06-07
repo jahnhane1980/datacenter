@@ -31,7 +31,7 @@ async function runEventSync() {
     try {
         // Dynamischer Import nach dotenv
         const { supabaseClient } = await import('./src/core/SupabaseClient.js');
-        const { createTickerRepository } = await import('./src/repositories/TickerRepository.js');
+        const { createTickerRepository, SYNC_JOBS } = await import('./src/repositories/TickerRepository.js');
         const { EventRepository } = await import('./src/repositories/EventRepository.js');
         const { FinnhubService } = await import('./src/services/FinnhubService.js');
 
@@ -39,12 +39,12 @@ async function runEventSync() {
         const eventRepo = new EventRepository(supabaseClient);
         const finnhubService = new FinnhubService();
 
-        // 1. Ticker aus der eigenen Datenbank laden (Nur Typ 3 = STOCK)
-        console.log('Lade Aktien (Typ 3) aus der Datenbank...');
-        const allTickers = await tickerRepo.getAllTickers(3);
+        // 1. Ticker aus der eigenen Datenbank laden (Job-gesteuert)
+        console.log('Lade Ticker für EVENTS aus der Datenbank...');
+        const allTickers = await tickerRepo.getTickersForJob(SYNC_JOBS.EVENTS);
         
         if (!allTickers || allTickers.length === 0) {
-            console.log('Keine Aktien (Typ 3) in der Datenbank gefunden. Breche Sync ab.');
+            console.log('Keine Ticker für EVENTS in der Datenbank gefunden. Breche Sync ab.');
             return;
         }
         

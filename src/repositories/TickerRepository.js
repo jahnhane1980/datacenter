@@ -2,6 +2,16 @@ import { supabaseClient } from '../core/SupabaseClient.js';
 
 const DB_TABLE = 'ticker';
 
+export const SYNC_JOBS = Object.freeze({
+    DAILY: 'DAILY',
+    M5: 'M5',
+    OPTIONS: 'OPTIONS',
+    SHORT_VOLUME: 'SHORT_VOLUME',
+    SENTIMENT: 'SENTIMENT',
+    EVENTS: 'EVENTS',
+    SECTOR_ROTATION: 'SECTOR_ROTATION'
+});
+
 export function createTickerRepository() {
     /**
      * Holt alle Ticker aus der Datenbank, optional gefiltert nach Typ.
@@ -25,7 +35,33 @@ export function createTickerRepository() {
         return data;
     };
 
-    return {
-        getAllTickers
+    /**
+     * Holt alle Ticker, die in der Konfigurations-Tabelle für einen bestimmten Job aktiviert sind.
+     * @param {string} jobName - Der Name des Sync-Jobs (aus SYNC_JOBS)
+     * @returns {Promise<Array>} Liste der konfigurierten Ticker
+     */
+    const getTickersForJob = async (jobName) => {
+        const { data, error } = await supabaseClient
+            .from('ticker_data_config')
+            .select(`
+                ticker_id,
+                ticker(id, name, ticker_typ_id)
+            `)
+            .eq('sync_type', jobName)
+            .eq('is_active', true);
+
+        if (error) {
+            throw new Error(`[TickerRepository] Fehler in getTickersForJob(${jobName}): ${error.message}`);
+        }
+
+        if (!data) return [];
+        return data
+            .filter(row => row.ticker !== null)
+            .map(row => row.ticker);
     };
-}
+
+    return {
+        getAllTickers,
+        getTickersForJob
+    };
+}

@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { createSentimentNewsService, SENTIMENT_STATIC_WATCHLIST } from './src/services/SentimentNewsService.js';
 import { createSentimentNewsRepository } from './src/repositories/SentimentNewsRepository.js';
-import { createTickerRepository } from './src/repositories/TickerRepository.js';
+import { createTickerRepository, SYNC_JOBS } from './src/repositories/TickerRepository.js';
 
 async function runDailySync() {
     console.log('Starte täglichen Finnhub Sync (News & Sentiments)...');
@@ -11,8 +11,8 @@ async function runDailySync() {
         const sentimentNewsRepository = createSentimentNewsRepository();
         const tickerRepository = createTickerRepository(); 
 
-        console.log('Lade dynamische Typ-3-Aktien aus der Datenbank...');
-        const type3Tickers = await tickerRepository.getAllTickers(3); 
+        console.log('Lade dynamische Ticker für SENTIMENT aus der Datenbank...');
+        const type3Tickers = await tickerRepository.getTickersForJob(SYNC_JOBS.SENTIMENT); 
         const dynamicStocks = type3Tickers.map(t => t.name.includes('.') ? t.name : `${t.name}.US`);
 
         const fullWatchlist = [
