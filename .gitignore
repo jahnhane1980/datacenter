@@ -4,3 +4,5 @@ analyze-ticker.js
 live-airbag.js
 tmp/
 snippets/
+supabase/.temp
+supabase/seed.sql
