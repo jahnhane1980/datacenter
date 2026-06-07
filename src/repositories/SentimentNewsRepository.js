@@ -1,5 +1,9 @@
 import { supabaseClient } from '../core/SupabaseClient.js';
 
+const DB_TABLE_SENTIMENT = 'market_sentiment_daily';
+const DB_TABLE_NEWS_FEED = 'macro_news_feed';
+const DB_TABLE_SYNC_QUEUE = 'eodhd_sync_queue';
+
 export function createSentimentNewsRepository() {
     
     /**
@@ -11,7 +15,7 @@ export function createSentimentNewsRepository() {
      */
     const upsertDailySentiment = async (observationDate, ticker, articleCount, normalizedScore) => {
         const { error } = await supabaseClient
-            .from('market_sentiment_daily')
+            .from(DB_TABLE_SENTIMENT)
             .upsert(
                 { 
                     observation_date: observationDate,
@@ -32,7 +36,7 @@ export function createSentimentNewsRepository() {
      */
     const upsertNewsArticle = async (articleLink, publishedAt, title, tags, sentimentPolarity) => {
         const { error } = await supabaseClient
-            .from('macro_news_feed')
+            .from(DB_TABLE_NEWS_FEED)
             .upsert(
                 { 
                     article_link: articleLink,
@@ -54,7 +58,7 @@ export function createSentimentNewsRepository() {
      */
     const getLatestSentimentDate = async () => {
         const { data, error } = await supabaseClient
-            .from('market_sentiment_daily')
+            .from(DB_TABLE_SENTIMENT)
             .select('observation_date')
             .order('observation_date', { ascending: false })
             .limit(1);
@@ -68,7 +72,7 @@ export function createSentimentNewsRepository() {
      */
     const getLatestNewsDate = async () => {
         const { data, error } = await supabaseClient
-            .from('macro_news_feed')
+            .from(DB_TABLE_NEWS_FEED)
             .select('published_at')
             .order('published_at', { ascending: false })
             .limit(1);
@@ -83,7 +87,7 @@ export function createSentimentNewsRepository() {
      */
     const getSyncQueue = async () => {
         const { data, error } = await supabaseClient
-            .from('eodhd_sync_queue')
+            .from(DB_TABLE_SYNC_QUEUE)
             .select('*')
             .order('last_sync_at', { ascending: true, nullsFirst: true });
 
@@ -107,7 +111,7 @@ export function createSentimentNewsRepository() {
         }));
 
         const { error } = await supabaseClient
-            .from('eodhd_sync_queue')
+            .from(DB_TABLE_SYNC_QUEUE)
             .upsert(upsertData, { onConflict: 'ticker' });
 
         if (error) {

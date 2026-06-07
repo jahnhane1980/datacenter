@@ -1,5 +1,7 @@
 import { supabaseClient } from '../core/SupabaseClient.js';
 
+const DB_TABLE = 'treasury_qra_estimates';
+
 export function createQRARepository() {
     /**
      * Erstellt oder aktualisiert einen QRA-Schätzwert (Quarterly Refunding Announcement).
@@ -17,7 +19,7 @@ export function createQRARepository() {
         estimatedTgaBalance
     ) => {
         const { error } = await supabaseClient
-            .from('treasury_qra_estimates')
+            .from(DB_TABLE)
             .upsert(
                 { 
                     target_quarter: targetQuarter,
@@ -40,7 +42,7 @@ export function createQRARepository() {
      */
     const getLatestEstimateForQuarter = async (targetQuarter) => {
         const { data, error } = await supabaseClient
-            .from('treasury_qra_estimates')
+            .from(DB_TABLE)
             .select('*')
             .eq('target_quarter', targetQuarter)
             .order('release_date', { ascending: false })

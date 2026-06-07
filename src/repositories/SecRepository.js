@@ -1,10 +1,16 @@
 import { supabaseClient } from '../core/SupabaseClient.js';
 
+const DB_TABLE_COMPANIES = 'sec_companies';
+const DB_TABLE_COMPANIES_KEYWORDS = 'sec_companies_keywords';
+const DB_TABLE_RAW_FILINGS = 'sec_raw_filings';
+const DB_TABLE_FMP_FUNDAMENTALS = 'sec_fmp_fundamentals';
+const DB_TABLE_AI_SIGNALS = 'sec_ai_signals';
+
 export function createSecRepository() {
     
     const getCompaniesWithoutCik = async () => {
         const { data, error } = await supabaseClient
-            .from('sec_companies')
+            .from(DB_TABLE_COMPANIES)
             .select('ticker')
             .is('cik', null)
             .eq('is_active', true);
@@ -17,7 +23,7 @@ export function createSecRepository() {
 
     const updateCompanyCik = async (ticker, cik) => {
         const { error } = await supabaseClient
-            .from('sec_companies')
+            .from(DB_TABLE_COMPANIES)
             .update({ cik: cik, updated_at: new Date().toISOString() })
             .eq('ticker', ticker);
 
@@ -31,7 +37,7 @@ export function createSecRepository() {
      */
     const getTrackedCompanies = async () => {
         const { data, error } = await supabaseClient
-            .from('sec_companies')
+            .from(DB_TABLE_COMPANIES)
             .select('ticker, cik, is_foreign_issuer, archetype')
             .not('cik', 'is', null)
             .eq('is_active', true);
@@ -44,7 +50,7 @@ export function createSecRepository() {
 
     const getCompanyKeywords = async (ticker) => {
         const { data, error } = await supabaseClient
-            .from('sec_companies_keywords')
+            .from(DB_TABLE_COMPANIES_KEYWORDS)
             .select('metric_name, keyword')
             .eq('ticker', ticker)
             .eq('is_active', true);
@@ -67,7 +73,7 @@ export function createSecRepository() {
 
     const filingExists = async (accessionNumber) => {
         const { data, error } = await supabaseClient
-            .from('sec_raw_filings')
+            .from(DB_TABLE_RAW_FILINGS)
             .select('id')
             .eq('accession_number', accessionNumber)
             .maybeSingle();
@@ -80,7 +86,7 @@ export function createSecRepository() {
 
     const saveRawFiling = async (ticker, formType, filingDate, accessionNumber, rawContent) => {
         const { data, error } = await supabaseClient
-            .from('sec_raw_filings')
+            .from(DB_TABLE_RAW_FILINGS)
             .insert([{
                 ticker,
                 form_type: formType,
@@ -102,7 +108,7 @@ export function createSecRepository() {
      */
     const fmpFundamentalExists = async (ticker, fiscalYear, period) => {
         const { data, error } = await supabaseClient
-            .from('sec_fmp_fundamentals')
+            .from(DB_TABLE_FMP_FUNDAMENTALS)
             .select('id')
             .eq('ticker', ticker)
             .eq('fiscal_year', fiscalYear)
@@ -118,7 +124,7 @@ export function createSecRepository() {
      */
     const saveFmpFundamentals = async (fundamentalData) => {
         const { error } = await supabaseClient
-            .from('sec_fmp_fundamentals')
+            .from(DB_TABLE_FMP_FUNDAMENTALS)
             .insert([fundamentalData]);
 
         if (error) {
@@ -133,7 +139,7 @@ export function createSecRepository() {
         if (!signalsArray || signalsArray.length === 0) return;
 
         const { error } = await supabaseClient
-            .from('sec_ai_signals')
+            .from(DB_TABLE_AI_SIGNALS)
             .insert(signalsArray);
 
         if (error) {

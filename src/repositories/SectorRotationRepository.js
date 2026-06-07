@@ -2,6 +2,8 @@
  * SectorRotationRepository
  * Verwaltet den Lese- und Schreibzugriff für die Sektor-Rotation.
  */
+const DB_TABLE = 'sector_rotation_log';
+
 export class SectorRotationRepository {
     constructor(supabaseClient) {
         if (!supabaseClient) throw new Error('[SectorRotationRepository] Kritisch: supabaseClient fehlt im Konstruktor!');
@@ -14,7 +16,7 @@ export class SectorRotationRepository {
      */
     async getLatestLogDate() {
         const { data, error } = await this.supabaseClient
-            .from('sector_rotation_log')
+            .from(DB_TABLE)
             .select('datum')
             .order('datum', { ascending: false })
             .limit(1)
@@ -41,7 +43,7 @@ export class SectorRotationRepository {
         }
 
         const { error } = await this.supabaseClient
-            .from('sector_rotation_log')
+            .from(DB_TABLE)
             .upsert(logs, { onConflict: 'datum, ticker_id' });
 
         if (error) {

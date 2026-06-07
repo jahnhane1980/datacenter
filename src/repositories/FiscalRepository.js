@@ -1,5 +1,7 @@
 import { supabaseClient } from '../core/SupabaseClient.js';
 
+const DB_TABLE = 'treasury_auctions';
+
 export function createFiscalRepository() {
     /**
      * Erstellt oder aktualisiert einen Auktions-Datensatz.
@@ -37,7 +39,7 @@ export function createFiscalRepository() {
         indirectBidderAccepted
     ) => {
         const { error } = await supabaseClient
-            .from('treasury_auctions')
+            .from(DB_TABLE)
             .upsert(
                 { 
                     auction_date: auctionDate,
@@ -69,7 +71,7 @@ export function createFiscalRepository() {
      */
     const getLatestAuctionDate = async () => {
         const { data, error } = await supabaseClient
-            .from('treasury_auctions')
+            .from(DB_TABLE)
             .select('auction_date')
             .order('auction_date', { ascending: false })
             .limit(1);

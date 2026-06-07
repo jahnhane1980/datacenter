@@ -3,6 +3,10 @@
  * Verwaltet alle Datenbankoperationen für Options-Snapshots und historische Kontrakt-Kerzen.
  * Sichert die relationale Integrität über die zentrale 'ticker' Integer-ID zu den Stammdaten.
  */
+const DB_TABLE_SNAPSHOTS = 'options_snapshots';
+const DB_TABLE_CHAIN_SNAPSHOTS = 'option_chain_snapshots';
+const DB_TABLE_CONTRACT_BARS = 'option_contract_bars';
+
 export class OptionRepository {
     /**
      * @param {Object} supabaseClient - Die injizierte Datenbankverbindung
@@ -36,7 +40,7 @@ export class OptionRepository {
             console.log(`[Option Repository] Schreibe Chunk (${chunk.length} Zeilen) in options_snapshots...`);
             
             const { error } = await this.supabaseClient
-                .from('options_snapshots')
+                .from(DB_TABLE_SNAPSHOTS)
                 .upsert(chunk, { 
                     onConflict: 'scraped_at,ticker,expiration_date,option_type,strike' 
                 });
@@ -73,7 +77,7 @@ export class OptionRepository {
             console.log(`[Option Repository] Speichere ${chunk.length} AlphaVantage-Ratios relational...`);
             
             const { error } = await this.supabaseClient
-                .from('option_chain_snapshots')
+                .from(DB_TABLE_CHAIN_SNAPSHOTS)
                 .upsert(chunk, {
                     onConflict: 'contract_id,scraped_at'
                 });
@@ -109,7 +113,7 @@ export class OptionRepository {
         console.log(`[Option Repository] Speichere ${rowsToInsert.length} historische Bars relational für ${tickerClean}...`);
 
         const { error } = await this.supabaseClient
-            .from('option_contract_bars')
+            .from(DB_TABLE_CONTRACT_BARS)
             .upsert(rowsToInsert, {
                 onConflict: 'contract_id,bar_timestamp'
             });

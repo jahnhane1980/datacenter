@@ -2,6 +2,8 @@
  * EventRepository
  * Verwaltet den Schreib- und Lesezugriff für den Event-Kalender (Earnings, FDA etc.).
  */
+const DB_TABLE = 'event_calendar';
+
 export class EventRepository {
     constructor(supabaseClient) {
         if (!supabaseClient) throw new Error('[EventRepository] Kritisch: supabaseClient fehlt im Konstruktor!');
@@ -18,7 +20,7 @@ export class EventRepository {
         if (!tickerIds || tickerIds.length === 0) return;
 
         const { error } = await this.supabaseClient
-            .from('event_calendar')
+            .from(DB_TABLE)
             .delete()
             .in('ticker_id', tickerIds)
             .gte('event_datum', fromDateStr);
@@ -41,7 +43,7 @@ export class EventRepository {
         }
 
         const { error } = await this.supabaseClient
-            .from('event_calendar')
+            .from(DB_TABLE)
             .upsert(events, { onConflict: 'ticker_id, event_typ, event_datum' });
 
         if (error) {

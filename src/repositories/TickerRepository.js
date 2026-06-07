@@ -1,5 +1,7 @@
 import { supabaseClient } from '../core/SupabaseClient.js';
 
+const DB_TABLE = 'ticker';
+
 export function createTickerRepository() {
     /**
      * Holt alle Ticker aus der Datenbank, optional gefiltert nach Typ.
@@ -8,7 +10,7 @@ export function createTickerRepository() {
      */
     const getAllTickers = async (typeId = null) => {
         // HIER IST DER FIX: Wir zwingen Supabase, die ticker_typ_id mit in das JSON-Objekt zu packen!
-        let query = supabaseClient.from('ticker').select('id, name, ticker_typ_id');
+        let query = supabaseClient.from(DB_TABLE).select('id, name, ticker_typ_id');
         
         if (typeId !== null) {
             query = query.eq('ticker_typ_id', typeId);

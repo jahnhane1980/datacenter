@@ -1,12 +1,15 @@
 import { supabaseClient } from '../core/SupabaseClient.js';
 
+const DB_TABLE_ALERTS = 'regulation_alerts';
+const DB_TABLE_REQUIREMENTS = 'reserve_requirements';
+
 export function createRegulationRepository() {
     /**
      * Prüft, ob ein Dokument anhand seiner ID (document_number) bereits in der Datenbank existiert.
      */
     const documentExists = async (documentNumber) => {
         const { data, error } = await supabaseClient
-            .from('regulation_alerts')
+            .from(DB_TABLE_ALERTS)
             .select('document_number')
             .eq('document_number', documentNumber)
             .single();
@@ -24,7 +27,7 @@ export function createRegulationRepository() {
      */
     const insertDocument = async (documentNumber, publicationDate, title, pdfUrl, abstractText) => {
         const { error } = await supabaseClient
-            .from('regulation_alerts')
+            .from(DB_TABLE_ALERTS)
             .insert([{
                 document_number: documentNumber,
                 publication_date: publicationDate,
@@ -43,7 +46,7 @@ export function createRegulationRepository() {
      */
     const getCurrentRatio = async () => {
         const { data, error } = await supabaseClient
-            .from('reserve_requirements')
+            .from(DB_TABLE_REQUIREMENTS)
             .select('ratio_percent')
             .order('effective_date', { ascending: false })
             .limit(1)
@@ -62,7 +65,7 @@ export function createRegulationRepository() {
      */
     const insertNewRatio = async (effectiveDate, ratioPercent, documentNumber) => {
         const { error } = await supabaseClient
-            .from('reserve_requirements')
+            .from(DB_TABLE_REQUIREMENTS)
             .insert([{
                 effective_date: effectiveDate,
                 ratio_percent: ratioPercent,

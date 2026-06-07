@@ -1,5 +1,7 @@
 import { supabaseClient } from '../core/SupabaseClient.js';
 
+const DB_TABLE = 'finra_short_volume';
+
 export class FinraRepository {
     /**
      * Erstellt oder aktualisiert einen Short-Sale-Datensatz für einen Ticker an einem bestimmten Tag.
@@ -11,7 +13,7 @@ export class FinraRepository {
      */
     async upsertShortData(tickerId, timestamp, shortVolume, totalVolume) {
         const { error } = await supabaseClient
-            .from('finra_short_volume')
+            .from(DB_TABLE)
             .upsert(
                 { 
                     ticker: tickerId, 
@@ -37,7 +39,7 @@ export class FinraRepository {
      */
     async getLatestTimestamp(tickerId = null) {
         let query = supabaseClient
-            .from('finra_short_volume')
+            .from(DB_TABLE)
             .select('timestamp')
             .order('timestamp', { ascending: false })
             .limit(1);
@@ -63,7 +65,7 @@ export class FinraRepository {
      */
     async getExistingMonths() {
         const { data, error } = await supabaseClient
-            .from('finra_short_volume')
+            .from(DB_TABLE)
             .select('timestamp')
             .order('timestamp', { ascending: false });
 

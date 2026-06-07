@@ -1,9 +1,11 @@
 import { supabaseClient } from '../core/SupabaseClient.js';
 
+const DB_TABLE = 'cboe_options_volume';
+
 export class CboeRepository {
     async upsertVolumeData(tickerId, timestamp, volume) {
         const { error } = await supabaseClient
-            .from('cboe_options_volume')
+            .from(DB_TABLE)
             .upsert(
                 { 
                     ticker: tickerId, 
@@ -20,7 +22,7 @@ export class CboeRepository {
 
     async getLatestTimestamp(tickerId) {
         const { data, error } = await supabaseClient
-            .from('cboe_options_volume')
+            .from(DB_TABLE)
             .select('timestamp')
             .eq('ticker', tickerId)
             .order('timestamp', { ascending: false })

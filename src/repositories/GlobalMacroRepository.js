@@ -1,5 +1,9 @@
 import { supabaseClient } from '../core/SupabaseClient.js';
 
+const DB_TABLE_DEFINITION = 'global_macro_indicator_definition';
+const DB_TABLE_VALUES = 'global_macro_indicator_values';
+const DB_TABLE_FX_RATES = 'fx_rates_daily';
+
 export function createGlobalMacroRepository() {
     
     /**
@@ -7,7 +11,7 @@ export function createGlobalMacroRepository() {
      */
     const getDefinitions = async () => {
         const { data, error } = await supabaseClient
-            .from('global_macro_indicator_definition')
+            .from(DB_TABLE_DEFINITION)
             .select('id, series_id, region, currency');
 
         if (error) {
@@ -21,7 +25,7 @@ export function createGlobalMacroRepository() {
      */
     const getLatestGlobalDate = async (indicatorId) => {
         const { data, error } = await supabaseClient
-            .from('global_macro_indicator_values')
+            .from(DB_TABLE_VALUES)
             .select('observation_date')
             .eq('indicator_id', indicatorId)
             .order('observation_date', { ascending: false })
@@ -39,7 +43,7 @@ export function createGlobalMacroRepository() {
      */
     const upsertGlobalData = async (indicatorId, observationDate, rawValue) => {
         const { error } = await supabaseClient
-            .from('global_macro_indicator_values')
+            .from(DB_TABLE_VALUES)
             .upsert(
                 { 
                     indicator_id: indicatorId, 
@@ -59,7 +63,7 @@ export function createGlobalMacroRepository() {
      */
     const getLatestFxDate = async (currencyPair) => {
         const { data, error } = await supabaseClient
-            .from('fx_rates_daily')
+            .from(DB_TABLE_FX_RATES)
             .select('observation_date')
             .eq('currency_pair', currencyPair)
             .order('observation_date', { ascending: false })
@@ -77,7 +81,7 @@ export function createGlobalMacroRepository() {
      */
     const upsertFxRate = async (observationDate, currencyPair, rate) => {
         const { error } = await supabaseClient
-            .from('fx_rates_daily')
+            .from(DB_TABLE_FX_RATES)
             .upsert(
                 { 
                     observation_date: observationDate, 

@@ -1,10 +1,13 @@
 import { supabaseClient } from '../core/SupabaseClient.js';
 
+const DB_TABLE_SERIES = 'labor_market_series';
+const DB_TABLE_DATA_POINTS = 'labor_market_data_points';
+
 export function createLaborMarketRepository() {
     
     const getSeries = async () => {
         const { data, error } = await supabaseClient
-            .from('labor_market_series')
+            .from(DB_TABLE_SERIES)
             .select('id, name, category, frequency');
 
         if (error) throw new Error(`Fehler beim Laden der Labor Market Series: ${error.message}`);
@@ -13,7 +16,7 @@ export function createLaborMarketRepository() {
 
     const getLatestDate = async (seriesId) => {
         const { data, error } = await supabaseClient
-            .from('labor_market_data_points')
+            .from(DB_TABLE_DATA_POINTS)
             .select('data_period')
             .eq('series_id', seriesId)
             .order('data_period', { ascending: false })
@@ -28,7 +31,7 @@ export function createLaborMarketRepository() {
 
     const upsertDataPoint = async (seriesId, dataPeriod, releaseDate, value, isPreliminary) => {
         const { error } = await supabaseClient
-            .from('labor_market_data_points')
+            .from(DB_TABLE_DATA_POINTS)
             .upsert(
                 { 
                     series_id: seriesId, 

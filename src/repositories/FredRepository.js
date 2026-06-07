@@ -1,5 +1,9 @@
 import { supabaseClient } from '../core/SupabaseClient.js';
 
+const DB_TABLE_LIQUIDITY = 'macro_liquidity';
+const DB_TABLE_INDICATOR_VALUES = 'macro_indicator_values';
+const DB_TABLE_INDICATOR_DEFINITION = 'macro_indicator_definition';
+
 export function createFredRepository() {
     /**
      * Erstellt oder aktualisiert einen Makro-Liquiditäts-Datensatz an einem bestimmten Tag.
@@ -15,7 +19,7 @@ export function createFredRepository() {
      */
     const upsertMacroData = async (observationDate, tgaBalance, rrpBalance, fedBalance, btfpBalance, bankReservesFed, sofrRate) => {
         const { error } = await supabaseClient
-            .from('macro_liquidity')
+            .from(DB_TABLE_LIQUIDITY)
             .upsert(
                 { 
                     observation_date: observationDate,
@@ -42,7 +46,7 @@ export function createFredRepository() {
         if (!valuesArray || valuesArray.length === 0) return;
 
         const { error } = await supabaseClient
-            .from('macro_indicator_values')
+            .from(DB_TABLE_INDICATOR_VALUES)
             .upsert(valuesArray, { onConflict: 'indicator_id, observation_date' });
 
         if (error) {
@@ -56,7 +60,7 @@ export function createFredRepository() {
      */
     const getMacroIndicatorDefinitions = async () => {
         const { data, error } = await supabaseClient
-            .from('macro_indicator_definition')
+            .from(DB_TABLE_INDICATOR_DEFINITION)
             .select('id, series_id');
 
         if (error) {
@@ -72,7 +76,7 @@ export function createFredRepository() {
      */
     const getLatestObservationDate = async () => {
         const { data, error } = await supabaseClient
-            .from('macro_liquidity')
+            .from(DB_TABLE_LIQUIDITY)
             .select('observation_date')
             .order('observation_date', { ascending: false })
             .limit(1);
