@@ -1,8 +1,8 @@
 import { supabaseClient } from '../core/SupabaseClient.js';
 
 const DB_TABLE_SENTIMENT = 'market_sentiment_daily';
-const DB_TABLE_NEWS_FEED = 'macro_news_feed';
-const DB_TABLE_SYNC_QUEUE = 'eodhd_sync_queue';
+const DB_TABLE_NEWS_FEED = 'market_news_feed';
+const DB_TABLE_SYNC_QUEUE = 'market_sync_queue';
 
 export function createSentimentNewsRepository() {
     

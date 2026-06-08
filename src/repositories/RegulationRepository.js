@@ -1,7 +1,7 @@
 import { supabaseClient } from '../core/SupabaseClient.js';
 
-const DB_TABLE_ALERTS = 'regulation_alerts';
-const DB_TABLE_REQUIREMENTS = 'reserve_requirements';
+const DB_TABLE_ALERTS = 'macro_reg_alerts';
+const DB_TABLE_REQUIREMENTS = 'macro_reserve_requirements';
 
 export function createRegulationRepository() {
     /**

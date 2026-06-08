@@ -1,6 +1,6 @@
 import { supabaseClient } from '../core/SupabaseClient.js';
 
-const DB_TABLE = 'finra_short_volume';
+const DB_TABLE = 'market_finra_short_volume';
 
 export class FinraRepository {
     /**

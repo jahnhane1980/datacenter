@@ -3,7 +3,6 @@
  * Verwaltet alle Datenbankoperationen für Options-Snapshots und historische Kontrakt-Kerzen.
  * Sichert die relationale Integrität über die zentrale 'ticker' Integer-ID zu den Stammdaten.
  */
-const DB_TABLE_SNAPSHOTS = 'options_snapshots';
 const DB_TABLE_CHAIN_SNAPSHOTS = 'option_chain_snapshots';
 const DB_TABLE_CONTRACT_BARS = 'option_contract_bars';
 
@@ -16,40 +15,6 @@ export class OptionRepository {
         this.supabaseClient = supabaseClient;
     }
 
-    /**
-     * HISTORISCH / BESTEHEND:
-     * Fügt ein Array von Options-Snapshots per Bulk-Insert in die Tabelle ein.
-     */
-    async insertChainSnapshot(records) {
-        if (!records || records.length === 0) return;
-
-        const rowsToInsert = records.map(r => ({
-            scraped_at: r.scraped_at,
-            ticker: r.ticker.toUpperCase(),
-            expiration_date: r.expiration_date,
-            option_type: r.option_type.toUpperCase(),
-            strike: r.strike,
-            open_interest: r.open_interest,
-            volume: r.volume
-        }));
-
-        const chunkSize = 1000;
-        for (let i = 0; i < rowsToInsert.length; i += chunkSize) {
-            const chunk = rowsToInsert.slice(i, i + chunkSize);
-            
-            console.log(`[Option Repository] Schreibe Chunk (${chunk.length} Zeilen) in options_snapshots...`);
-            
-            const { error } = await this.supabaseClient
-                .from(DB_TABLE_SNAPSHOTS)
-                .upsert(chunk, { 
-                    onConflict: 'scraped_at,ticker,expiration_date,option_type,strike' 
-                });
-
-            if (error) {
-                throw new Error(`Fehler beim Einfügen in options_snapshots: ${error.message}`);
-            }
-        }
-    }
 
     /**
      * ERWEITERUNG 1 (AlphaVantage Späher):

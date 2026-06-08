@@ -2,7 +2,7 @@
  * EventRepository
  * Verwaltet den Schreib- und Lesezugriff für den Event-Kalender (Earnings, FDA etc.).
  */
-const DB_TABLE = 'event_calendar';
+const DB_TABLE = 'market_event_calendar';
 
 export class EventRepository {
     constructor(supabaseClient) {

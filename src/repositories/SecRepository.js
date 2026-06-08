@@ -3,7 +3,7 @@ import { supabaseClient } from '../core/SupabaseClient.js';
 const DB_TABLE_COMPANIES = 'sec_companies';
 const DB_TABLE_COMPANIES_KEYWORDS = 'sec_companies_keywords';
 const DB_TABLE_RAW_FILINGS = 'sec_raw_filings';
-const DB_TABLE_FMP_FUNDAMENTALS = 'sec_fmp_fundamentals';
+const DB_TABLE_FMP_FUNDAMENTALS = 'sec_fundamentals';
 const DB_TABLE_AI_SIGNALS = 'sec_ai_signals';
 
 export function createSecRepository() {

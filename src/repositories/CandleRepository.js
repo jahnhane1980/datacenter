@@ -1,5 +1,5 @@
-const DB_TABLE_DAILY = 'daily_candles';
-const DB_TABLE_M5 = 'm5_candles';
+const DB_TABLE_DAILY = 'market_daily_candles';
+const DB_TABLE_M5 = 'market_m5_candles';
 
 export class CandleRepository {
     constructor(supabaseClient) {

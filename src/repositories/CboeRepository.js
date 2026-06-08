@@ -1,6 +1,6 @@
 import { supabaseClient } from '../core/SupabaseClient.js';
 
-const DB_TABLE = 'cboe_options_volume';
+const DB_TABLE = 'option_cboe_volume';
 
 export class CboeRepository {
     async upsertVolumeData(tickerId, timestamp, volume) {

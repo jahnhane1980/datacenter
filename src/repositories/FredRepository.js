@@ -1,8 +1,8 @@
 import { supabaseClient } from '../core/SupabaseClient.js';
 
-const DB_TABLE_LIQUIDITY = 'macro_liquidity';
-const DB_TABLE_INDICATOR_VALUES = 'macro_indicator_values';
-const DB_TABLE_INDICATOR_DEFINITION = 'macro_indicator_definition';
+const DB_TABLE_LIQUIDITY = 'macro_us_liquidity';
+const DB_TABLE_INDICATOR_VALUES = 'macro_us_indicator_values';
+const DB_TABLE_INDICATOR_DEFINITION = 'macro_us_indicator_definition';
 
 export function createFredRepository() {
     /**
