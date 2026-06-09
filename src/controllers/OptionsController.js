@@ -1,4 +1,5 @@
 import { SYNC_JOBS } from '../repositories/TickerRepository.js';
+import { DateHelper } from '../core/DateHelper.js';
 
 export class OptionsController {
     /**
@@ -54,7 +55,7 @@ export class OptionsController {
     async runHistoricSync(polygonService) {
         console.log('[OPTIONS-HISTORIC] Starte resilienten EOD-Lauf mit Gap-Filler...');
 
-        const todayStr = new Date().toISOString().split('T')[0];
+        const todayStr = DateHelper.toSqlDate();
 
         console.log('[OPTIONS-HISTORIC] Extrahiere alle jemals registrierten Volumen-Ausreißer...');
 
@@ -89,12 +90,12 @@ export class OptionsController {
                 if (latestBarTimestamp) {
                     const latestDate = new Date(latestBarTimestamp);
                     latestDate.setDate(latestDate.getDate() + 1);
-                    fromStr = latestDate.toISOString().split('T')[0];
+                    fromStr = DateHelper.toSqlDate(latestDate);
                     console.log(` -> Status: Teilweise vorhanden. Letzter Eintrag vom: ${latestBarTimestamp.split('T')[0]}`);
                 } else {
                     const fiveDaysAgo = new Date();
                     fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
-                    fromStr = fiveDaysAgo.toISOString().split('T')[0];
+                    fromStr = DateHelper.toSqlDate(fiveDaysAgo);
                     console.log(` -> Status: Keine Bars vorhanden. Initialisiere 5-Tage-Lookback.`);
                 }
 
@@ -132,12 +133,8 @@ export class OptionsController {
     async runBackfillSync(polygonService) {
         console.log('[OPTIONS-BACKFILL] Starte autonomen 2-Jahres-Backfill...');
 
-        const today = new Date();
-        const twoYearsAgo = new Date();
-        twoYearsAgo.setFullYear(today.getFullYear() - 2);
-        
-        const targetBackfillStr = twoYearsAgo.toISOString().split('T')[0];
-        const todayStr = today.toISOString().split('T')[0];
+        const targetBackfillStr = DateHelper.toSqlDate(DateHelper.getYearsAgo(2));
+        const todayStr = DateHelper.toSqlDate();
 
         console.log(`[OPTIONS-BACKFILL] Maximales historisches Ziel: Rückwirkend bis ${targetBackfillStr}`);
         console.log('[OPTIONS-BACKFILL] Lade dynamische Watchlist aus der Datenbank...');
@@ -175,7 +172,7 @@ export class OptionsController {
                 if (oldestBarTimestamp) {
                     const oldestDate = new Date(oldestBarTimestamp);
                     const toDateObj = new Date(oldestDate.getTime() - 24 * 60 * 60 * 1000);
-                    toStr = toDateObj.toISOString().split('T')[0];
+                    toStr = DateHelper.toSqlDate(toDateObj);
 
                     console.log(` -> Status: Teil-Historie vorhanden. Ältester Record vom: ${oldestBarTimestamp.split('T')[0]}`);
 

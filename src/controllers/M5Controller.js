@@ -1,4 +1,5 @@
 import { SYNC_JOBS } from '../repositories/TickerRepository.js';
+import { DateHelper } from '../core/DateHelper.js';
 
 export class M5Controller {
     /**
@@ -10,10 +11,6 @@ export class M5Controller {
         this.tickerRepository = tickerRepository;
         this.candleRepository = candleRepository;
         this.polygonIoService = polygonIoService;
-    }
-
-    formatDate(date) {
-        return date.toISOString().split('T')[0];
     }
 
     /**
@@ -30,29 +27,14 @@ export class M5Controller {
             return;
         }
 
-        const today = new Date();
-        const toDateStr = this.formatDate(today);
-
         for (const ticker of tickers) {
             console.log(`\nVerarbeite M5 für ${ticker.name}...`);
             try {
                 const latestTimestamp = await this.candleRepository.getLatestM5Timestamp(ticker.id);
-                
-                let fromDate;
-                let isBackfill = false;
+                const { fromDateStr, toDateStr, isBackfill, isUpToDate } = DateHelper.getSyncRange(latestTimestamp, { offsetSeconds: 300 });
 
-                if (!latestTimestamp) {
-                    isBackfill = true;
-                    fromDate = new Date();
-                    fromDate.setFullYear(today.getFullYear() - 2);
-                } else {
-                    const hoursDiff = (today.getTime() - (latestTimestamp * 1000)) / (1000 * 60 * 60);
-                    if (hoursDiff > 48) {
-                        isBackfill = true;
-                        console.log(`[${ticker.name}] Lücke von > 48h erkannt. Aktiviere Backfill-Modus.`);
-                    }
-                    
-                    fromDate = new Date((latestTimestamp + 300) * 1000); 
+                if (isBackfill && latestTimestamp) {
+                    console.log(`[${ticker.name}] Lücke von > 48h erkannt. Aktiviere Backfill-Modus.`);
                 }
 
                 if (!isBackfill && !isMarketOpen) {
@@ -60,12 +42,11 @@ export class M5Controller {
                     continue;
                 }
 
-                if (fromDate > today) {
+                if (isUpToDate) {
                     console.log(`[${ticker.name}] Ist bereits auf dem neuesten Stand.`);
                     continue;
                 }
 
-                const fromDateStr = this.formatDate(fromDate);
                 console.log(`[${ticker.name}] Hole Daten ab ${fromDateStr}...`);
 
                 // Streaming-Ansatz: Chunk-Callback wird direkt beim Fetchen aufgerufen

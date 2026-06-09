@@ -1,4 +1,5 @@
 import { SYNC_JOBS } from '../repositories/TickerRepository.js';
+import { DateHelper } from '../core/DateHelper.js';
 
 // KONFIGURATIONS-MATRIX (V-FAKTOREN)
 const V_FACTORS = {
@@ -57,10 +58,10 @@ export class SectorRotationController {
             // 110 Kalendertage Puffer sind sicher ausreichend, um Wochenenden/Feiertage abzufangen.
             const historyStartDate = new Date(lastDate);
             historyStartDate.setDate(historyStartDate.getDate() - 110);
-            historyStartTimestamp = Math.floor(historyStartDate.getTime() / 1000);
+            historyStartTimestamp = DateHelper.toUnixTimestamp(historyStartDate);
             
             console.log(`Letzter Log-Eintrag: ${lastLogDateStr}`);
-            console.log(`Lade Kerzen-Historie ab: ${historyStartDate.toISOString().split('T')[0]}`);
+            console.log(`Lade Kerzen-Historie ab: ${DateHelper.toSqlDate(historyStartDate)}`);
         } else {
             console.log('Kein existierendes Log gefunden. Breche Daily Sync ab. Bitte zuerst Backfill ausführen!');
             throw new Error('Kein existierendes Log gefunden.');
@@ -92,7 +93,7 @@ export class SectorRotationController {
 
         for (let i = 70; i < spyData.length; i++) {
             const currentSpy = spyData[i];
-            const currentDateStr = new Date(currentSpy.timestamp * 1000).toISOString().split('T')[0];
+            const currentDateStr = DateHelper.toSqlDate(DateHelper.fromUnixTimestamp(currentSpy.timestamp));
             
             if (currentDateStr <= lastLogDateStr) {
                 continue;

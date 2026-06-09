@@ -1,4 +1,5 @@
 import { SYNC_JOBS } from '../repositories/TickerRepository.js';
+import { DateHelper } from '../core/DateHelper.js';
 
 export class CboeController {
     /**
@@ -23,28 +24,20 @@ export class CboeController {
             return;
         }
 
-        const today = new Date();
-        const toDateStr = today.toISOString().split('T')[0];
-
         for (const ticker of tickers) {
             console.log(`\nVerarbeite CBOE-Volumen für ${ticker.name}...`);
 
             try {
                 const latestTimestamp = await this.cboeRepo.getLatestTimestamp(ticker.id);
-                let fromDateStr;
+                const { fromDateStr, toDateStr, isBackfill, isUpToDate } = DateHelper.getSyncRange(latestTimestamp);
 
-                if (!latestTimestamp) {
+                if (isUpToDate) {
+                    console.log(`[${ticker.name}] Daten-Integrität geprüft: DB ist lückenlos aktuell. Überspringe API-Abfrage.`);
+                    continue;
+                }
+
+                if (isBackfill && !latestTimestamp) {
                     console.log(`[${ticker.name}] Keine historischen CBOE-Daten gefunden. Starte 2-Jahres-Backfill.`);
-                    const backfillDate = new Date();
-                    backfillDate.setFullYear(today.getFullYear() - 2);
-                    fromDateStr = backfillDate.toISOString().split('T')[0];
-                } else {
-                    const nextDate = new Date((latestTimestamp + 86400) * 1000);
-                    if (nextDate > today) {
-                        console.log(`[${ticker.name}] Daten-Integrität geprüft: DB ist lückenlos aktuell. Überspringe API-Abfrage.`);
-                        continue;
-                    }
-                    fromDateStr = nextDate.toISOString().split('T')[0];
                 }
 
                 const records = await this.cboeService.fetchOptionsVolume(ticker.name, fromDateStr, toDateStr);
@@ -66,7 +59,9 @@ export class CboeController {
 
                 console.log(`[${ticker.name}] ${addedRecords} CBOE-Datensätze erfolgreich verarbeitet.`);
 
-                await this._humanSleep(8, 15);
+                if (this.pacingManager) {
+                    await this.pacingManager.humanDelay(8, 15);
+                }
 
             } catch (error) {
                 console.error(`Fehler bei Ticker ${ticker.name}: ${error.message}`);

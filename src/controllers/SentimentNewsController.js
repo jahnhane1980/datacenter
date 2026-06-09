@@ -1,6 +1,7 @@
 
 import { SENTIMENT_STATIC_WATCHLIST } from '../services/SentimentNewsService.js';
 import { SYNC_JOBS } from '../repositories/TickerRepository.js';
+import { DateHelper } from '../core/DateHelper.js';
 
 export class SentimentNewsController {
     /**
@@ -72,12 +73,12 @@ export class SentimentNewsController {
         if (oldestBatchDate) {
             const d = new Date(oldestBatchDate);
             d.setDate(d.getDate() - 2);
-            sentimentStartDate = d.toISOString().split('T')[0];
-            console.log(`Ältestes Datum im aktuellen Batch: ${oldestBatchDate.toISOString().split('T')[0]}. Hole Delta ab ${sentimentStartDate}...`);
+            sentimentStartDate = DateHelper.toSqlDate(d);
+            console.log(`Ältestes Datum im aktuellen Batch: ${DateHelper.toSqlDate(oldestBatchDate)}. Hole Delta ab ${sentimentStartDate}...`);
         } else {
             const fallbackDate = new Date();
             fallbackDate.setDate(fallbackDate.getDate() - 7);
-            sentimentStartDate = fallbackDate.toISOString().split('T')[0];
+            sentimentStartDate = DateHelper.toSqlDate(fallbackDate);
             console.log(`Kein Datum für Batch bestimmbar. Fallback auf ${sentimentStartDate}...`);
         }
 
@@ -221,7 +222,7 @@ export class SentimentNewsController {
                 if (error.response && (error.response.status === 429 || error.response.status === 402)) {
                     const tomorrow = new Date();
                     tomorrow.setDate(tomorrow.getDate() + 1);
-                    console.warn(`\n[!] Rate Limit für heute erschöpft. Bitte erst wieder am ${tomorrow.toISOString().split('T')[0]} ausführen.`);
+                    console.warn(`\n[!] Rate Limit für heute erschöpft. Bitte erst wieder am ${DateHelper.toSqlDate(tomorrow)} ausführen.`);
                     rateLimitReached = true; 
                     break; 
                 } else {

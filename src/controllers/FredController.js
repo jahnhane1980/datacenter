@@ -1,4 +1,5 @@
 import { FRED_SERIES } from '../services/FredService.js';
+import { DateHelper } from '../core/DateHelper.js';
 
 export class FredController {
     /**
@@ -167,7 +168,7 @@ export class FredController {
         } else {
             const date = new Date();
             date.setDate(date.getDate() - 14);
-            startDate = date.toISOString().split('T')[0];
+            startDate = DateHelper.toSqlDate(date);
             console.log(`Kein Eintrag gefunden. Fallback auf die letzten 14 Tage (ab ${startDate})...`);
         }
 

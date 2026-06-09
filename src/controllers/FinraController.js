@@ -1,4 +1,5 @@
 import { SYNC_JOBS } from '../repositories/TickerRepository.js';
+import { DateHelper } from '../core/DateHelper.js';
 
 export class FinraController {
     /**
@@ -49,8 +50,7 @@ export class FinraController {
         
         let localCutoffDateStr = "1970-01-01";
         if (latestGlobalTimestamp) {
-            const latestDbDate = new Date(latestGlobalTimestamp * 1000);
-            localCutoffDateStr = latestDbDate.toISOString().split('T')[0];
+            localCutoffDateStr = DateHelper.toSqlDate(DateHelper.fromUnixTimestamp(latestGlobalTimestamp));
             console.log(`[Live-Analyse] Global neuester Eintrag in der DB vom: ${localCutoffDateStr}`);
         } else {
             console.log('[Live-Analyse] Keine bestehenden Daten gefunden. Starte im Fallback-Modus.');
@@ -101,9 +101,7 @@ export class FinraController {
             
             console.log(`\nVerarbeite Datei ${index + 1} von ${finalSelection.length} | Datum: ${fileDateStr}`);
 
-            const dateParts = fileDateStr.split('-');
-            const dateUtc = new Date(Date.UTC(dateParts[0], dateParts[1] - 1, dateParts[2]));
-            const timestampSeconds = Math.floor(dateUtc.getTime() / 1000);
+            const timestampSeconds = DateHelper.toUnixTimestamp(fileDateStr);
 
             const fileContent = await this.finraService.downloadFileContent(url);
             if (!fileContent) {
@@ -219,9 +217,7 @@ export class FinraController {
                     const fileDateStr = this.parseDateFromUrl(url);
                     if (!fileDateStr) continue;
 
-                    const dateParts = fileDateStr.split('-');
-                    const dateUtc = new Date(Date.UTC(dateParts[0], dateParts[1] - 1, dateParts[2]));
-                    const timestampSeconds = Math.floor(dateUtc.getTime() / 1000);
+                    const timestampSeconds = DateHelper.toUnixTimestamp(fileDateStr);
 
                     const fileContent = await this.finraService.downloadFileContent(url);
                     if (!fileContent) {

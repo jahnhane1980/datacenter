@@ -1,4 +1,5 @@
 import { SYNC_JOBS } from '../repositories/TickerRepository.js';
+import { DateHelper } from '../core/DateHelper.js';
 
 export class EventsController {
     /**
@@ -14,10 +15,6 @@ export class EventsController {
         this.finnhubService = finnhubService;
         this.httpClient = httpClient;
         this.pacingManager = pacingManager;
-    }
-
-    _formatDate(date) {
-        return date.toISOString().split('T')[0];
     }
 
     async runDailySync() {
@@ -38,8 +35,8 @@ export class EventsController {
         const futureDate = new Date();
         futureDate.setDate(today.getDate() + 30);
 
-        const fromDateStr = this._formatDate(today);
-        const toDateStr = this._formatDate(futureDate);
+        const fromDateStr = DateHelper.toSqlDate(today);
+        const toDateStr = DateHelper.toSqlDate(futureDate);
         console.log(`Abfrage-Zeitraum: ${fromDateStr} bis ${toDateStr}`);
 
         const allInserts = [];
