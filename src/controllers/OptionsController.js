@@ -1,13 +1,15 @@
 import { SYNC_JOBS } from '../repositories/TickerRepository.js';
 import { DateHelper } from '../core/DateHelper.js';
+import { BaseController } from '../core/BaseController.js';
 
-export class OptionsController {
+export class OptionsController extends BaseController {
     /**
      * @param {Object} tickerRepository
      * @param {Object} optionRepository
      * @param {Object} alphaVantageService
      */
-    constructor(tickerRepository, optionRepository, alphaVantageService) {
+    constructor(tickerRepository, optionRepository, alphaVantageService, pacingManager = null) {
+        super('OptionsController', pacingManager);
         this.tickerRepository = tickerRepository;
         this.optionRepository = optionRepository;
         this.alphaVantageService = alphaVantageService;
@@ -18,33 +20,29 @@ export class OptionsController {
      * Holt stündlich die aktuellen Ratios aus der AlphaVantage Kette.
      */
     async runIntraSync() {
-        console.log('[OPTIONS-INTRA] Starte stündlichen Options-Ratio Scan für STOCK Assets...');
+        await this.executeJob('OPTIONS-INTRA', async () => {
+            const tickers = await this.tickerRepository.getTickersForJob(SYNC_JOBS.OPTIONS);
+            if (!tickers || tickers.length === 0) {
+                console.warn('[OPTIONS-INTRA] Keine Ticker für OPTIONS registriert. Breche ab.');
+                return;
+            }
 
-        const tickers = await this.tickerRepository.getTickersForJob(SYNC_JOBS.OPTIONS);
-        if (!tickers || tickers.length === 0) {
-            console.warn('[OPTIONS-INTRA] Keine Ticker für OPTIONS registriert. Breche ab.');
-            return;
-        }
+            await this.processItemsSafely(tickers, (t) => t.name.toUpperCase(), async (tickerRow) => {
+                const tickerId = tickerRow.id;
+                const symbolUpper = tickerRow.name.toUpperCase();
 
-        for (const tickerRow of tickers) {
-            const tickerId = tickerRow.id;
-            const symbolUpper = tickerRow.name.toUpperCase();
+                console.log(`\n[OPTIONS-INTRA] Scanne Ticker: ${symbolUpper} (ID: ${tickerId})`);
 
-            console.log(`\n[OPTIONS-INTRA] Scanne Ticker: ${symbolUpper} (ID: ${tickerId})`);
-
-            try {
                 const records = await this.alphaVantageService.fetchIntradayRatios(symbolUpper);
-                if (!records || records.length === 0) continue;
+                if (!records || records.length === 0) return;
 
                 // Direktes, relationales Wegschreiben in option_chain_snapshots
                 await this.optionRepository.insertAlphaVantageRatios(tickerId, records);
                 console.log(`[OPTIONS-INTRA] ${records.length} Kontrakte für ${symbolUpper} verarbeitet.`);
-
-            } catch (tickerError) {
-                console.error(`[OPTIONS-INTRA ERROR] Fehler bei Ticker ${symbolUpper}:`, tickerError.message);
-            }
-        }
-        console.log('\n[OPTIONS-INTRA] Stündlicher Scan beendet.');
+            });
+            
+            console.log('\n[OPTIONS-INTRA] Stündlicher Scan beendet.');
+        });
     }
 
     /**
@@ -53,38 +51,36 @@ export class OptionsController {
      * @param {Object} polygonService 
      */
     async runHistoricSync(polygonService) {
-        console.log('[OPTIONS-HISTORIC] Starte resilienten EOD-Lauf mit Gap-Filler...');
+        await this.executeJob('OPTIONS-HISTORIC', async () => {
+            const todayStr = DateHelper.toSqlDate();
 
-        const todayStr = DateHelper.toSqlDate();
+            console.log('[OPTIONS-HISTORIC] Extrahiere alle jemals registrierten Volumen-Ausreißer...');
 
-        console.log('[OPTIONS-HISTORIC] Extrahiere alle jemals registrierten Volumen-Ausreißer...');
+            const anomalies = await this.optionRepository.getAnomalousContracts();
 
-        const anomalies = await this.optionRepository.getAnomalousContracts();
-
-        if (!anomalies || anomalies.length === 0) {
-            console.log('[OPTIONS-HISTORIC] Keine historischen Volumen-Ausreißer in option_chain_snapshots gefunden. Warte auf Intraday-Signale.');
-            return;
-        }
-
-        const uniqueAnomalies = [];
-        const seenContracts = new Set();
-        for (const item of anomalies) {
-            if (!seenContracts.has(item.contract_id)) {
-                seenContracts.add(item.contract_id);
-                uniqueAnomalies.push(item);
+            if (!anomalies || anomalies.length === 0) {
+                console.log('[OPTIONS-HISTORIC] Keine historischen Volumen-Ausreißer in option_chain_snapshots gefunden. Warte auf Intraday-Signale.');
+                return;
             }
-        }
 
-        console.log(`[OPTIONS-HISTORIC] ${uniqueAnomalies.length} einzigartige Kontrakte müssen überprüft werden.`);
+            const uniqueAnomalies = [];
+            const seenContracts = new Set();
+            for (const item of anomalies) {
+                if (!seenContracts.has(item.contract_id)) {
+                    seenContracts.add(item.contract_id);
+                    uniqueAnomalies.push(item);
+                }
+            }
 
-        for (const anomaly of uniqueAnomalies) {
-            const tickerId = anomaly.ticker;
-            const contractId = anomaly.contract_id;
+            console.log(`[OPTIONS-HISTORIC] ${uniqueAnomalies.length} einzigartige Kontrakte müssen überprüft werden.`);
 
-            console.log(`\n[OPTIONS-HISTORIC] Analysiere Daten-Integrität für: ${contractId}`);
+            await this.processItemsSafely(uniqueAnomalies, (a) => a.contract_id, async (anomaly) => {
+                const tickerId = anomaly.ticker;
+                const contractId = anomaly.contract_id;
 
-            let fromStr;
-            try {
+                console.log(`\n[OPTIONS-HISTORIC] Analysiere Daten-Integrität für: ${contractId}`);
+
+                let fromStr;
                 const latestBarTimestamp = await this.optionRepository.getLatestBarTimestampForContract(contractId);
 
                 if (latestBarTimestamp) {
@@ -101,7 +97,7 @@ export class OptionsController {
 
                 if (fromStr > todayStr) {
                     console.log(` -> Integrität gewahrt: Kontrakt ist bereits lückenlos aktuell.`);
-                    continue;
+                    return;
                 }
 
                 console.log(` -> Lücken-Schluss: Ziehe Daten von [${fromStr}] bis [${todayStr}]`);
@@ -110,18 +106,15 @@ export class OptionsController {
 
                 if (!bars || bars.length === 0) {
                     console.log(` -> Hinweis: Keine neue Handelsaktivität in diesem Zeitraum.`);
-                    continue;
+                    return;
                 }
 
                 await this.optionRepository.insertHistoricContractBars(tickerId, contractId, bars);
                 console.log(` -> SUCCESS: ${bars.length} Intraday-Bars lückenlos nachgetragen.`);
+            });
 
-            } catch (err) {
-                console.error(` -> [ERROR] Verarbeitung fehlgeschlagen für ${contractId}:`, err.message);
-            }
-        }
-
-        console.log('\n[OPTIONS-HISTORIC] Alle historischen Gaps erfolgreich geschlossen.');
+            console.log('\n[OPTIONS-HISTORIC] Alle historischen Gaps erfolgreich geschlossen.');
+        });
     }
 
     /**
@@ -131,42 +124,40 @@ export class OptionsController {
      * @param {Object} polygonService 
      */
     async runBackfillSync(polygonService) {
-        console.log('[OPTIONS-BACKFILL] Starte autonomen 2-Jahres-Backfill...');
+        await this.executeJob('OPTIONS-BACKFILL', async () => {
+            const targetBackfillStr = DateHelper.toSqlDate(DateHelper.getYearsAgo(2));
+            const todayStr = DateHelper.toSqlDate();
 
-        const targetBackfillStr = DateHelper.toSqlDate(DateHelper.getYearsAgo(2));
-        const todayStr = DateHelper.toSqlDate();
+            console.log(`[OPTIONS-BACKFILL] Maximales historisches Ziel: Rückwirkend bis ${targetBackfillStr}`);
+            console.log('[OPTIONS-BACKFILL] Lade dynamische Watchlist aus der Datenbank...');
 
-        console.log(`[OPTIONS-BACKFILL] Maximales historisches Ziel: Rückwirkend bis ${targetBackfillStr}`);
-        console.log('[OPTIONS-BACKFILL] Lade dynamische Watchlist aus der Datenbank...');
+            const anomalies = await this.optionRepository.getAnomalousContracts();
 
-        const anomalies = await this.optionRepository.getAnomalousContracts();
-
-        if (!anomalies || anomalies.length === 0) {
-            console.log('[OPTIONS-BACKFILL] Keine Ausreißer in der Datenbank gefunden. Die Watchlist ist leer.');
-            return;
-        }
-
-        const uniqueTargets = [];
-        const seenContracts = new Set();
-        for (const item of anomalies) {
-            if (!seenContracts.has(item.contract_id)) {
-                seenContracts.add(item.contract_id);
-                uniqueTargets.push(item);
+            if (!anomalies || anomalies.length === 0) {
+                console.log('[OPTIONS-BACKFILL] Keine Ausreißer in der Datenbank gefunden. Die Watchlist ist leer.');
+                return;
             }
-        }
 
-        console.log(`[OPTIONS-BACKFILL] ${uniqueTargets.length} relevante Kontrakte für die historische Tiefenbohrung identifiziert.`);
+            const uniqueTargets = [];
+            const seenContracts = new Set();
+            for (const item of anomalies) {
+                if (!seenContracts.has(item.contract_id)) {
+                    seenContracts.add(item.contract_id);
+                    uniqueTargets.push(item);
+                }
+            }
 
-        for (const target of uniqueTargets) {
-            const tickerId = target.ticker;
-            const contractId = target.contract_id;
+            console.log(`[OPTIONS-BACKFILL] ${uniqueTargets.length} relevante Kontrakte für die historische Tiefenbohrung identifiziert.`);
 
-            console.log(`\n[OPTIONS-BACKFILL] Analysiere Historien-Tiefe für: ${contractId}`);
+            await this.processItemsSafely(uniqueTargets, (t) => t.contract_id, async (target) => {
+                const tickerId = target.ticker;
+                const contractId = target.contract_id;
 
-            let fromStr = targetBackfillStr;
-            let toStr = todayStr;
+                console.log(`\n[OPTIONS-BACKFILL] Analysiere Historien-Tiefe für: ${contractId}`);
 
-            try {
+                let fromStr = targetBackfillStr;
+                let toStr = todayStr;
+
                 const oldestBarTimestamp = await this.optionRepository.getOldestBarTimestampForContract(contractId);
 
                 if (oldestBarTimestamp) {
@@ -178,7 +169,7 @@ export class OptionsController {
 
                     if (toStr < targetBackfillStr) {
                         console.log(` -> Ziel erreicht: Kontrakt hat bereits die vollen 2 Jahre Historie.`);
-                        continue;
+                        return;
                     }
                 } else {
                     console.log(` -> Status: Keine Bars vorhanden. Starte vollen historischen Download.`);
@@ -190,17 +181,14 @@ export class OptionsController {
 
                 if (!bars || bars.length === 0) {
                     console.log(` -> Hinweis: Keine Handelsaktivität für diesen Kontrakt vor dem ${toStr}. (Kontrakt existierte wahrscheinlich noch nicht)`);
-                    continue;
+                    return;
                 }
 
                 await this.optionRepository.insertHistoricContractBars(tickerId, contractId, bars);
                 console.log(` -> SUCCESS: ${bars.length} historische Bars erfolgreich in die Zeitmaschine geladen.`);
+            });
 
-            } catch (err) {
-                console.error(` -> [ERROR] Abfrage fehlgeschlagen für ${contractId}:`, err.message);
-            }
-        }
-
-        console.log('\n[OPTIONS-BACKFILL] Autonomer 2-Jahres-Backfill vollständig abgeschlossen.');
+            console.log('\n[OPTIONS-BACKFILL] Autonomer 2-Jahres-Backfill vollständig abgeschlossen.');
+        });
     }
 }

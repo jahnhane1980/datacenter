@@ -61,6 +61,9 @@ describe('QRAController', () => {
             // Den fetchOrLoadHtml mocken, da wir keine echten HTTP requests machen wollen
             controller.fetchOrLoadHtml = vi.fn();
             
+            // Standard-Mock für alle weiteren Seitenaufrufe (verhindert cheerio Absturz bei leeren Seiten)
+            controller.fetchOrLoadHtml.mockResolvedValue('<html><body></body></html>');
+            
             // Seite 1 mit einem Link
             controller.fetchOrLoadHtml.mockResolvedValueOnce('<html><body><a href="/news/press-releases/test">borrowing estimate text</a></body></html>');
             // Artikel HTML
@@ -73,19 +76,13 @@ describe('QRAController', () => {
                 estimated_tga_balance: 2000
             });
 
-            // Wir beschränken den Testlauf, damit er nicht endlos läuft (sonst iteriert er bis 8 Funde erreicht sind)
-            // Hier ein Hack für den Test: wir werfen nach dem ersten Fund absichtlich einen Error
-            mockQraRepo.upsertQraEstimate.mockImplementation(() => {
-                throw new Error('Test break loop');
-            });
+            mockQraRepo.upsertQraEstimate.mockResolvedValue();
 
-            try {
-                await controller.runBackfill();
-            } catch (e) {
-                expect(e.message).toBe('Test break loop');
-            }
+            // Läuft nun regulär durch alle Iterationen (mit leeren HTML Seiten) 
+            await controller.runBackfill();
 
             expect(mockLlmService.parseQraArticle).toHaveBeenCalled();
+            expect(mockQraRepo.upsertQraEstimate).toHaveBeenCalled();
         });
     });
 });

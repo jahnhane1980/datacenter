@@ -1,7 +1,8 @@
 import { SYNC_JOBS } from '../repositories/TickerRepository.js';
 import { DateHelper } from '../core/DateHelper.js';
+import { BaseController } from '../core/BaseController.js';
 
-export class CboeController {
+export class CboeController extends BaseController {
     /**
      * @param {Object} tickerRepo 
      * @param {Object} cboeRepo 
@@ -9,6 +10,7 @@ export class CboeController {
      * @param {Object} pacingManager 
      */
     constructor(tickerRepo, cboeRepo, cboeService, pacingManager) {
+        super('CboeController', pacingManager);
         this.tickerRepo = tickerRepo;
         this.cboeRepo = cboeRepo;
         this.cboeService = cboeService;
@@ -16,24 +18,22 @@ export class CboeController {
     }
 
     async runSync() {
-        console.log('=== Starte CBOE Options Volume Sync ===');
+        await this.executeJob('CBOE Options Volume Sync', async () => {
+            const tickers = await this.tickerRepo.getTickersForJob(SYNC_JOBS.OPTIONS);
+            if (!tickers || tickers.length === 0) {
+                console.log('Keine Ticker für OPTIONS konfiguriert.');
+                return;
+            }
 
-        const tickers = await this.tickerRepo.getTickersForJob(SYNC_JOBS.OPTIONS);
-        if (!tickers || tickers.length === 0) {
-            console.log('Keine Ticker für OPTIONS konfiguriert.');
-            return;
-        }
+            await this.processItemsSafely(tickers, (t) => t.name, async (ticker) => {
+                console.log(`\nVerarbeite CBOE-Volumen für ${ticker.name}...`);
 
-        for (const ticker of tickers) {
-            console.log(`\nVerarbeite CBOE-Volumen für ${ticker.name}...`);
-
-            try {
                 const latestTimestamp = await this.cboeRepo.getLatestTimestamp(ticker.id);
                 const { fromDateStr, toDateStr, isBackfill, isUpToDate } = DateHelper.getSyncRange(latestTimestamp);
 
                 if (isUpToDate) {
                     console.log(`[${ticker.name}] Daten-Integrität geprüft: DB ist lückenlos aktuell. Überspringe API-Abfrage.`);
-                    continue;
+                    return;
                 }
 
                 if (isBackfill && !latestTimestamp) {
@@ -58,17 +58,8 @@ export class CboeController {
                 }
 
                 console.log(`[${ticker.name}] ${addedRecords} CBOE-Datensätze erfolgreich verarbeitet.`);
-
-                if (this.pacingManager) {
-                    await this.pacingManager.humanDelay(8, 15);
-                }
-
-            } catch (error) {
-                console.error(`Fehler bei Ticker ${ticker.name}: ${error.message}`);
-                if (this.pacingManager) await this.pacingManager.humanDelay(5, 10);
-            }
-        }
-
-        console.log('\n=== CBOE Options Volume Sync abgeschlossen ===');
+                await this.delay(8, 15);
+            });
+        });
     }
 }

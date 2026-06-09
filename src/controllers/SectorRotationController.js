@@ -1,5 +1,6 @@
 import { SYNC_JOBS } from '../repositories/TickerRepository.js';
 import { DateHelper } from '../core/DateHelper.js';
+import { BaseController } from '../core/BaseController.js';
 
 // KONFIGURATIONS-MATRIX (V-FAKTOREN)
 const V_FACTORS = {
@@ -13,13 +14,14 @@ const V_FACTORS = {
     'GDXJ': 0.6, 'GLD': 1.0                            // Gold
 };
 
-export class SectorRotationController {
+export class SectorRotationController extends BaseController {
     /**
      * @param {Object} tickerRepo 
      * @param {Object} candleRepo 
      * @param {Object} sectorRepo 
      */
     constructor(tickerRepo, candleRepo, sectorRepo) {
+        super('SectorRotationController');
         this.tickerRepo = tickerRepo;
         this.candleRepo = candleRepo;
         this.sectorRepo = sectorRepo;
@@ -46,136 +48,134 @@ export class SectorRotationController {
      * Führt den täglichen Sektor-Rotation Sync aus.
      */
     async runDailySync() {
-        console.log('=== 🔄 STARTE DAILY SECTOR ROTATION SYNC ===');
+        await this.executeJob('Daily Sector Rotation Sync', async () => {
+            const lastLogDateStr = await this.sectorRepo.getLatestLogDate();
+            let historyStartTimestamp = 0;
 
-        const lastLogDateStr = await this.sectorRepo.getLatestLogDate();
-        let historyStartTimestamp = 0;
-
-        if (lastLogDateStr) {
-            const lastDate = new Date(lastLogDateStr);
-            
-            // Wir benötigen 70 Handelstage Historie für RSI50 und 60-Tage Momentum.
-            // 110 Kalendertage Puffer sind sicher ausreichend, um Wochenenden/Feiertage abzufangen.
-            const historyStartDate = new Date(lastDate);
-            historyStartDate.setDate(historyStartDate.getDate() - 110);
-            historyStartTimestamp = DateHelper.toUnixTimestamp(historyStartDate);
-            
-            console.log(`Letzter Log-Eintrag: ${lastLogDateStr}`);
-            console.log(`Lade Kerzen-Historie ab: ${DateHelper.toSqlDate(historyStartDate)}`);
-        } else {
-            console.log('Kein existierendes Log gefunden. Breche Daily Sync ab. Bitte zuerst Backfill ausführen!');
-            throw new Error('Kein existierendes Log gefunden.');
-        }
-
-        const allTickers = await this.tickerRepo.getTickersForJob(SYNC_JOBS.SECTOR_ROTATION);
-        if (!allTickers || allTickers.length === 0) throw new Error('Keine Ticker für SECTOR_ROTATION gefunden.');
-        
-        const spyTicker = allTickers.find(t => t.name === 'SPY');
-        if (!spyTicker) throw new Error('SPY fehlt in der geladenen SECTOR_ROTATION Konfiguration!');
-
-        const etfsToAnalyze = allTickers.filter(t => Object.keys(V_FACTORS).includes(t.name));
-
-        const marketData = {};
-        console.log('Lade partielle Historie für SPY und ETFs in den RAM...');
-        
-        for (const ticker of [spyTicker, ...etfsToAnalyze]) {
-            const candles = await this.candleRepo.getDailyCandlesSince(ticker.id, historyStartTimestamp);
-            if (candles && candles.length > 70) {
-                marketData[ticker.name] = candles;
-            } else if (ticker.name === 'SPY') {
-                throw new Error('Nicht genügend historische Daten für SPY gefunden. Puffer zu klein?');
-            }
-        }
-
-        const spyData = marketData['SPY'];
-        let allInserts = [];
-        let newDaysProcessed = 0;
-
-        for (let i = 70; i < spyData.length; i++) {
-            const currentSpy = spyData[i];
-            const currentDateStr = DateHelper.toSqlDate(DateHelper.fromUnixTimestamp(currentSpy.timestamp));
-            
-            if (currentDateStr <= lastLogDateStr) {
-                continue;
-            }
-
-            let dailyResults = [];
-            newDaysProcessed++;
-
-            for (const etf of etfsToAnalyze) {
-                const etfData = marketData[etf.name];
-                if (!etfData) continue;
-
-                const etfIndex = etfData.findIndex(c => c.timestamp >= currentSpy.timestamp);
-                if (etfIndex < 70) continue; 
-
-                const currentEtf = etfData[etfIndex];
-                const historicalCloses = etfData.slice(0, etfIndex + 1).map(d => d.close);
+            if (lastLogDateStr) {
+                const lastDate = new Date(lastLogDateStr);
                 
-                const rsi50 = this._calculateRSI(historicalCloses, 50);
-
-                const idxMinus60 = etfIndex - 60;
-                const idxMinus20 = etfIndex - 20;
-
-                const etfPerf60 = (currentEtf.close - etfData[idxMinus60].close) / etfData[idxMinus60].close;
-                const spyPerf60 = (currentSpy.close - spyData[i - 60].close) / spyData[i - 60].close;
-                const magnitude = etfPerf60 - spyPerf60;
-
-                const ratioNow = currentEtf.close / currentSpy.close;
-                const ratio20d = etfData[idxMinus20].close / spyData[i - 20].close;
-                const velocity = (ratioNow - ratio20d) / ratio20d;
-
-                dailyResults.push({ name: etf.name, id: etf.id, rsi50, magnitude, velocity });
+                // Wir benötigen 70 Handelstage Historie für RSI50 und 60-Tage Momentum.
+                // 110 Kalendertage Puffer sind sicher ausreichend, um Wochenenden/Feiertage abzufangen.
+                const historyStartDate = new Date(lastDate);
+                historyStartDate.setDate(historyStartDate.getDate() - 110);
+                historyStartTimestamp = DateHelper.toUnixTimestamp(historyStartDate);
+                
+                console.log(`Letzter Log-Eintrag: ${lastLogDateStr}`);
+                console.log(`Lade Kerzen-Historie ab: ${DateHelper.toSqlDate(historyStartDate)}`);
+            } else {
+                console.log('Kein existierendes Log gefunden. Breche Daily Sync ab. Bitte zuerst Backfill ausführen!');
+                throw new Error('Kein existierendes Log gefunden.');
             }
 
-            if (dailyResults.length === 0) continue;
+            const allTickers = await this.tickerRepo.getTickersForJob(SYNC_JOBS.SECTOR_ROTATION);
+            if (!allTickers || allTickers.length === 0) throw new Error('Keine Ticker für SECTOR_ROTATION gefunden.');
+            
+            const spyTicker = allTickers.find(t => t.name === 'SPY');
+            if (!spyTicker) throw new Error('SPY fehlt in der geladenen SECTOR_ROTATION Konfiguration!');
 
-            const sortedByMag = [...dailyResults].sort((a, b) => a.magnitude - b.magnitude);
-            const sortedByVel = [...dailyResults].sort((a, b) => a.velocity - b.velocity);
-            const totalItems = dailyResults.length;
+            const etfsToAnalyze = allTickers.filter(t => Object.keys(V_FACTORS).includes(t.name));
 
-            for (const etf of dailyResults) {
-                const magRank = sortedByMag.findIndex(x => x.name === etf.name);
-                const velRank = sortedByVel.findIndex(x => x.name === etf.name);
+            const marketData = {};
+            console.log('Lade partielle Historie für SPY und ETFs in den RAM...');
+            
+            for (const ticker of [spyTicker, ...etfsToAnalyze]) {
+                const candles = await this.candleRepo.getDailyCandlesSince(ticker.id, historyStartTimestamp);
+                if (candles && candles.length > 70) {
+                    marketData[ticker.name] = candles;
+                } else if (ticker.name === 'SPY') {
+                    throw new Error('Nicht genügend historische Daten für SPY gefunden. Puffer zu klein?');
+                }
+            }
+
+            const spyData = marketData['SPY'];
+            let allInserts = [];
+            let newDaysProcessed = 0;
+
+            for (let i = 70; i < spyData.length; i++) {
+                const currentSpy = spyData[i];
+                const currentDateStr = DateHelper.toSqlDate(DateHelper.fromUnixTimestamp(currentSpy.timestamp));
                 
-                const magPoints = totalItems > 1 ? (magRank / (totalItems - 1)) * 10 : 5;
-                const velPoints = totalItems > 1 ? (velRank / (totalItems - 1)) * 10 : 5;
-
-                let rsiPoints = 0;
-                if (etf.rsi50 > 75) rsiPoints = 8;
-                else if (etf.rsi50 >= 35) rsiPoints = ((etf.rsi50 - 35) / 40) * 10; 
-
-                const rawScore = (0.4 * magPoints) + (0.3 * velPoints) + (0.3 * rsiPoints);
-                const vFactor = V_FACTORS[etf.name] || 0.8;
-                const adjustedScore = rawScore * vFactor;
-
-                let currentPhase = 'LAGGARD';
-                if (adjustedScore >= 7.5) {
-                    currentPhase = etf.rsi50 > 75 ? 'DISTRIBUTION' : 'LEADERSHIP';
-                } else if (adjustedScore >= 4.0 && adjustedScore < 7.5) {
-                    currentPhase = etf.velocity > 0 ? 'ACCUMULATION' : 'NEUTRAL';
+                if (currentDateStr <= lastLogDateStr) {
+                    continue;
                 }
 
-                allInserts.push({
-                    datum: currentDateStr,
-                    ticker_id: etf.id,
-                    ticker_name: etf.name,
-                    phase: currentPhase,
-                    adj_score: parseFloat(adjustedScore.toFixed(2)),
-                    raw_score: parseFloat(rawScore.toFixed(2)),
-                    rsi50: parseFloat(etf.rsi50.toFixed(2)),
-                    velocity: parseFloat(etf.velocity.toFixed(4))
-                });
+                let dailyResults = [];
+                newDaysProcessed++;
+
+                for (const etf of etfsToAnalyze) {
+                    const etfData = marketData[etf.name];
+                    if (!etfData) continue;
+
+                    const etfIndex = etfData.findIndex(c => c.timestamp >= currentSpy.timestamp);
+                    if (etfIndex < 70) continue; 
+
+                    const currentEtf = etfData[etfIndex];
+                    const historicalCloses = etfData.slice(0, etfIndex + 1).map(d => d.close);
+                    
+                    const rsi50 = this._calculateRSI(historicalCloses, 50);
+
+                    const idxMinus60 = etfIndex - 60;
+                    const idxMinus20 = etfIndex - 20;
+
+                    const etfPerf60 = (currentEtf.close - etfData[idxMinus60].close) / etfData[idxMinus60].close;
+                    const spyPerf60 = (currentSpy.close - spyData[i - 60].close) / spyData[i - 60].close;
+                    const magnitude = etfPerf60 - spyPerf60;
+
+                    const ratioNow = currentEtf.close / currentSpy.close;
+                    const ratio20d = etfData[idxMinus20].close / spyData[i - 20].close;
+                    const velocity = (ratioNow - ratio20d) / ratio20d;
+
+                    dailyResults.push({ name: etf.name, id: etf.id, rsi50, magnitude, velocity });
+                }
+
+                if (dailyResults.length === 0) continue;
+
+                const sortedByMag = [...dailyResults].sort((a, b) => a.magnitude - b.magnitude);
+                const sortedByVel = [...dailyResults].sort((a, b) => a.velocity - b.velocity);
+                const totalItems = dailyResults.length;
+
+                for (const etf of dailyResults) {
+                    const magRank = sortedByMag.findIndex(x => x.name === etf.name);
+                    const velRank = sortedByVel.findIndex(x => x.name === etf.name);
+                    
+                    const magPoints = totalItems > 1 ? (magRank / (totalItems - 1)) * 10 : 5;
+                    const velPoints = totalItems > 1 ? (velRank / (totalItems - 1)) * 10 : 5;
+
+                    let rsiPoints = 0;
+                    if (etf.rsi50 > 75) rsiPoints = 8;
+                    else if (etf.rsi50 >= 35) rsiPoints = ((etf.rsi50 - 35) / 40) * 10; 
+
+                    const rawScore = (0.4 * magPoints) + (0.3 * velPoints) + (0.3 * rsiPoints);
+                    const vFactor = V_FACTORS[etf.name] || 0.8;
+                    const adjustedScore = rawScore * vFactor;
+
+                    let currentPhase = 'LAGGARD';
+                    if (adjustedScore >= 7.5) {
+                        currentPhase = etf.rsi50 > 75 ? 'DISTRIBUTION' : 'LEADERSHIP';
+                    } else if (adjustedScore >= 4.0 && adjustedScore < 7.5) {
+                        currentPhase = etf.velocity > 0 ? 'ACCUMULATION' : 'NEUTRAL';
+                    }
+
+                    allInserts.push({
+                        datum: currentDateStr,
+                        ticker_id: etf.id,
+                        ticker_name: etf.name,
+                        phase: currentPhase,
+                        adj_score: parseFloat(adjustedScore.toFixed(2)),
+                        raw_score: parseFloat(rawScore.toFixed(2)),
+                        rsi50: parseFloat(etf.rsi50.toFixed(2)),
+                        velocity: parseFloat(etf.velocity.toFixed(4))
+                    });
+                }
             }
-        }
 
-        if (allInserts.length > 0) {
-            console.log(`Berechnung abgeschlossen. Upsert für ${newDaysProcessed} neue(n) Tag(e) (${allInserts.length} Zeilen)...`);
-            await this.sectorRepo.upsertLogs(allInserts);
-        } else {
-            console.log('Keine neuen Handelstage zu berechnen. Die Sektor-Uhr ist bereits auf dem neuesten Stand.');
-        }
-
-        console.log('\n✅ Daily Sector Rotation Sync erfolgreich beendet.');
+            if (allInserts.length > 0) {
+                console.log(`Berechnung abgeschlossen. Upsert für ${newDaysProcessed} neue(n) Tag(e) (${allInserts.length} Zeilen)...`);
+                await this.sectorRepo.upsertLogs(allInserts);
+            } else {
+                console.log('Keine neuen Handelstage zu berechnen. Die Sektor-Uhr ist bereits auf dem neuesten Stand.');
+            }
+        });
     }
 }

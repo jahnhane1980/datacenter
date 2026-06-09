@@ -1,13 +1,15 @@
 import { FRED_SERIES } from '../services/FredService.js';
 import { DateHelper } from '../core/DateHelper.js';
+import { BaseController } from '../core/BaseController.js';
 
-export class FredController {
+export class FredController extends BaseController {
     /**
      * @param {Object} fredRepo 
      * @param {Object} fredService 
      * @param {Object} pacingManager
      */
     constructor(fredRepo, fredService, pacingManager) {
+        super('FredController', pacingManager);
         this.fredRepo = fredRepo;
         this.fredService = fredService;
         this.pacingManager = pacingManager;
@@ -157,38 +159,36 @@ export class FredController {
      * Führt den täglichen Delta-Sync aus.
      */
     async runDailySync() {
-        console.log('Starte täglichen FRED Macro Liquidity Sync...');
-        
-        let startDate;
-        const latestDate = await this.fredRepo.getLatestObservationDate();
+        await this.executeJob('FRED Macro Liquidity Sync (Daily)', async () => {
+            let startDate;
+            const latestDate = await this.fredRepo.getLatestObservationDate();
 
-        if (latestDate) {
-            startDate = latestDate;
-            console.log(`Letzter Datenbankeintrag gefunden: ${latestDate}. Hole Delta bis heute...`);
-        } else {
-            const date = new Date();
-            date.setDate(date.getDate() - 14);
-            startDate = DateHelper.toSqlDate(date);
-            console.log(`Kein Eintrag gefunden. Fallback auf die letzten 14 Tage (ab ${startDate})...`);
-        }
+            if (latestDate) {
+                startDate = latestDate;
+                console.log(`Letzter Datenbankeintrag gefunden: ${latestDate}. Hole Delta bis heute...`);
+            } else {
+                const date = new Date();
+                date.setDate(date.getDate() - 14);
+                startDate = DateHelper.toSqlDate(date);
+                console.log(`Kein Eintrag gefunden. Fallback auf die letzten 14 Tage (ab ${startDate})...`);
+            }
 
-        await this._executeSync(startDate);
-        console.log('Daily Sync erfolgreich beendet!');
+            await this._executeSync(startDate);
+        });
     }
 
     /**
      * Führt einen kompletten historischen Backfill aus.
      */
     async runBackfill() {
-        console.log('Starte FRED Macro Liquidity Backfill...');
-        
-        const latestDate = await this.fredRepo.getLatestObservationDate();
-        
-        // Nach dem initialen Lauf kann startDate hier dynamisch angepasst werden
-        const startDate = '2021-01-01';
+        await this.executeJob('FRED Macro Liquidity Backfill', async () => {
+            const latestDate = await this.fredRepo.getLatestObservationDate();
+            
+            // Nach dem initialen Lauf kann startDate hier dynamisch angepasst werden
+            const startDate = '2021-01-01';
 
-        console.log(`Letzter Datenbankeintrag: ${latestDate || 'Keiner gefunden'}.`);
-        await this._executeSync(startDate);
-        console.log('Backfill erfolgreich beendet!');
+            console.log(`Letzter Datenbankeintrag: ${latestDate || 'Keiner gefunden'}.`);
+            await this._executeSync(startDate);
+        });
     }
 }
