@@ -25,6 +25,7 @@ export class Router {
             'global:sync': this.runGlobalSync.bind(this),
             'labor-market:backfill': this.runLaborMarketBackfill.bind(this),
             'labor-market:sync': this.runLaborMarketSync.bind(this),
+            'm5:archive': this.runM5Archive.bind(this),
             'm5:sync': this.runM5Sync.bind(this),
             'options:backfill': this.runOptionsBackfill.bind(this),
             'options:historic': this.runOptionsHistoric.bind(this),
@@ -140,6 +141,11 @@ export class Router {
     async runLaborMarketSync() {
         const controller = await this.factory.getController('LaborMarketController');
         await controller.runDailySync();
+    }
+
+    async runM5Archive() {
+        const controller = await this.factory.getController('ArchiveController');
+        await controller.runM5Archive(30); // 30 Tage als Standard
     }
 
     async runM5Sync() {

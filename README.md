@@ -39,3 +39,7 @@ supabase stop --no-backup
 
 Normales stoppen, ohne Daten löschen
 supabase stop
+
+
+Archivieren von m5 
+node sync.js --task m5 --mode archive

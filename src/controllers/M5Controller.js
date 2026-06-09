@@ -31,7 +31,14 @@ export class M5Controller extends BaseController {
             await this.processItemsSafely(tickers, (t) => t.name, async (ticker) => {
                 console.log(`\nVerarbeite M5 für ${ticker.name}...`);
                 
-                const latestTimestamp = await this.candleRepository.getLatestM5Timestamp(ticker.id);
+                let latestTimestamp = await this.candleRepository.getLatestM5Timestamp(ticker.id);
+                const archivedUntil = await this.candleRepository.getArchivedUntilTimestamp(ticker.id);
+
+                // Falls die Datenbank leer geräumt wurde, aber das Archiv-Log existiert, 
+                // nehmen wir das Archiv-Datum als Ausgangspunkt für den Sync
+                if (archivedUntil && (!latestTimestamp || archivedUntil > latestTimestamp)) {
+                    latestTimestamp = archivedUntil;
+                }
                 const { fromDateStr, toDateStr, isBackfill, isUpToDate } = DateHelper.getSyncRange(latestTimestamp, { offsetSeconds: 300 });
 
                 if (isBackfill && latestTimestamp) {

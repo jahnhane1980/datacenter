@@ -6,6 +6,23 @@ export class CandleRepository {
         this.supabaseClient = supabaseClient;
     }
 
+    async getArchivedUntilTimestamp(tickerId) {
+        const { data, error } = await this.supabaseClient
+            .from('archive_market_m5_log')
+            .select('archived_until')
+            .eq('ticker', tickerId)
+            .single();
+
+        if (error) {
+            if (error.code === 'PGRST116') {
+                return null;
+            }
+            throw new Error(`Fehler beim Abrufen des Archiv-Timestamps (Ticker ${tickerId}): ${error.message}`);
+        }
+
+        return data ? data.archived_until : null;
+    }
+
     async getLatestDailyTimestamp(tickerId) {
         const { data, error } = await this.supabaseClient
             .from(DB_TABLE_DAILY)

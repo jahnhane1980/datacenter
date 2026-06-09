@@ -15,6 +15,7 @@ describe('M5Controller', () => {
         };
         mockCandleRepo = {
             getLatestM5Timestamp: vi.fn(),
+            getArchivedUntilTimestamp: vi.fn(),
             upsertM5Candles: vi.fn()
         };
         mockPolygonService = {

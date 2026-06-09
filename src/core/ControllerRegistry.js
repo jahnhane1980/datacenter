@@ -4,6 +4,17 @@ export class ControllerRegistry {
         this.pacingManager = pacingManager;
         
         this.registry = {
+            'ArchiveController': async () => {
+                const { createTickerRepository } = await import('../repositories/TickerRepository.js');
+                const { ArchiveRepository } = await import('../repositories/ArchiveRepository.js');
+                const { ArchiveController } = await import('../controllers/ArchiveController.js');
+                
+                return new ArchiveController(
+                    createTickerRepository(this.db),
+                    new ArchiveRepository(),
+                    this.db
+                );
+            },
             'CboeController': async () => {
                 const { createTickerRepository } = await import('../repositories/TickerRepository.js');
                 const { CboeRepository } = await import('../repositories/CboeRepository.js');
