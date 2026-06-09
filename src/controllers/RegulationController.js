@@ -4,42 +4,13 @@ export class RegulationController {
      * @param {Object} regulationService 
      * @param {Object} aiClient 
      */
-    constructor(regulationRepo, regulationService, aiClient) {
+    constructor(regulationRepo, regulationService, llmService) {
         this.regulationRepo = regulationRepo;
         this.regulationService = regulationService;
-        this.aiClient = aiClient;
+        this.llmService = llmService;
     }
 
-    async analyzeDocumentWithLLM(text, title) {
-        const prompt = `
-Du bist ein hochpräziser Finanz- und Rechtsanalyst. 
-Analysiere den folgenden Auszug (Abstract) aus dem Federal Register der USA bezüglich der 'Regulation D' (Mindestreservepflicht).
 
-Deine einzige Aufgabe: Finde heraus, ob in diesem Text eine tatsächliche Änderung der Mindestreservequote (Reserve Requirement Ratio) verkündet wird. 
-Ignoriere reine Inflationsanpassungen (exemption amounts, low reserve tranche indexation), die die Quote selbst nicht verändern.
-
-Antworte AUSSCHLIESSLICH mit einem validen JSON-Objekt in folgendem Format:
-{
-  "ratio_changed": boolean,
-  "new_ratio_percent": number | null,
-  "reasoning": "Ein kurzer Satz mit deiner Begründung"
-}
-
-Hier ist der Text:
-Titel: ${title}
-Abstract: ${text}
-`;
-
-        const response = await this.aiClient.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: prompt,
-            config: {
-                responseMimeType: 'application/json'
-            }
-        });
-
-        return JSON.parse(response.text);
-    }
 
     async runRegulationCheck(testMode = false) {
         console.log('Starte Überwachung auf regulatorische Änderungen (Regulation D)...');
@@ -85,7 +56,7 @@ Abstract: ${text}
                 
                 let llmResult;
                 try {
-                    llmResult = await this.analyzeDocumentWithLLM(doc.abstract, doc.title);
+                    llmResult = await this.llmService.analyzeRegulationDocument(doc.abstract, doc.title);
                 } catch (llmError) {
                     if (llmError.status === 503 || (llmError.message && llmError.message.includes('503'))) {
                         console.error('\n❌ KRITISCHER FEHLER: Die Google Gemini API ist aktuell überlastet (503 Service Unavailable).');

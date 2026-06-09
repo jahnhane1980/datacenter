@@ -5,18 +5,13 @@ export class CboeController {
      * @param {Object} tickerRepo 
      * @param {Object} cboeRepo 
      * @param {Object} cboeService 
+     * @param {Object} pacingManager 
      */
-    constructor(tickerRepo, cboeRepo, cboeService) {
+    constructor(tickerRepo, cboeRepo, cboeService, pacingManager) {
         this.tickerRepo = tickerRepo;
         this.cboeRepo = cboeRepo;
         this.cboeService = cboeService;
-    }
-
-    async _humanSleep(minSeconds = 8, maxSeconds = 15) {
-        if (process.env.NODE_ENV === 'test') return;
-        const ms = Math.floor(Math.random() * (maxSeconds - minSeconds + 1) + minSeconds) * 1000;
-        console.log(`[Human Protection] Schlafe für ${(ms / 1000).toFixed(1)} Sekunden, um menschliches Verhalten zu simulieren...`);
-        return new Promise(resolve => setTimeout(resolve, ms));
+        this.pacingManager = pacingManager;
     }
 
     async runSync() {

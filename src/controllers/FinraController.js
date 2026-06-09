@@ -5,11 +5,13 @@ export class FinraController {
      * @param {Object} tickerRepository
      * @param {Object} finraRepository
      * @param {Object} finraService
+     * @param {Object} pacingManager
      */
-    constructor(tickerRepository, finraRepository, finraService) {
+    constructor(tickerRepository, finraRepository, finraService, pacingManager) {
         this.tickerRepository = tickerRepository;
         this.finraRepository = finraRepository;
         this.finraService = finraService;
+        this.pacingManager = pacingManager;
     }
 
     /**
@@ -25,15 +27,7 @@ export class FinraController {
         return null;
     }
 
-    /**
-     * Verzögert die Ausführung um eine kurze, zufällige Zeitspanne (12 bis 27 Sekunden).
-     * @returns {Promise<void>} Resolves, wenn die Wartezeit abgelaufen ist.
-     */
-    async liveDelay() {
-        const seconds = Math.floor(Math.random() * (27 - 12 + 1) + 12);
-        console.log(`[Live-Tarnung] Warte ${seconds} Sekunden bis zur nächsten Datei...`);
-        return new Promise(resolve => setTimeout(resolve, seconds * 1000));
-    }
+
 
     /**
      * Führt den täglichen, nach vorne gerichteten FINRA Short Sale Volume Sync aus.
@@ -143,9 +137,9 @@ export class FinraController {
             console.log(`[FINRA] ${addedRecords} Datensätze für den ${fileDateStr} erfolgreich importiert.`);
 
             if (finalSelection.length > 1 && index < finalSelection.length - 1) {
-                // Mockable delay in tests
-                if (process.env.NODE_ENV !== 'test') {
-                    await this.liveDelay();
+                if (this.pacingManager) {
+                    console.log(`[Live-Tarnung] Warte bis zur nächsten Datei...`);
+                    await this.pacingManager.humanDelay(12, 27);
                 }
             }
         }
@@ -153,24 +147,7 @@ export class FinraController {
         console.log('\n=== FINRA Live-Sync erfolgreich beendet ===');
     }
 
-    /**
-     * Verzögert die Ausführung um eine zufällige Zeitspanne, um menschliches Browsing-Verhalten zu simulieren.
-     * Beinhaltet eine 15%-ige Chance auf eine verlängerte "Kaffeepause".
-     */
-    async humanDelay() {
-        if (process.env.NODE_ENV === 'test') return;
-        const seconds = Math.floor(Math.random() * (90 - 45 + 1) + 45);
-        const isCoffeeBreak = Math.random() < 0.15;
-        const finalSeconds = isCoffeeBreak ? seconds + Math.floor(Math.random() * (240 - 120 + 1) + 120) : seconds;
 
-        if (isCoffeeBreak) {
-            console.log(`[Menschliche Tarnung] Hole kurz Kaffee... Extra lange Pause für ${(finalSeconds / 60).toFixed(1)} Minuten.`);
-        } else {
-            console.log(`[Menschliche Tarnung] Verdaddle Zeit... Warte ${finalSeconds} Sekunden bis zum nächsten Tag.`);
-        }
-
-        return new Promise(resolve => setTimeout(resolve, finalSeconds * 1000));
-    }
 
     /**
      * Führt den historischen Backfill für das FINRA Short Sale Volume durch.
@@ -277,13 +254,13 @@ export class FinraController {
 
                     console.log(`[FINRA] ${addedRecords} Short-Sale-Datensätze für den ${fileDateStr} erfolgreich verarbeitet.`);
 
-                    await this.humanDelay();
+                    if (this.pacingManager) await this.pacingManager.scrapingDelay();
                 }
 
             } catch (error) {
                 console.error(`Fehler im Sync-Lauf für ${period.year}-${period.month}: ${error.message}`);
-                if (process.env.NODE_ENV !== 'test') {
-                    await new Promise(resolve => setTimeout(resolve, 60000));
+                if (process.env.NODE_ENV !== 'test' && this.pacingManager) {
+                    await this.pacingManager.sleepSeconds(60);
                 }
             }
         }

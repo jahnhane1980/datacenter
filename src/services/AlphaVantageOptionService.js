@@ -1,5 +1,6 @@
 import ky from 'ky';
 import 'dotenv/config';
+import { createPacingManager } from '../managers/PacingManager.js';
 
 /**
  * AlphaVantageOptionService
@@ -7,8 +8,10 @@ import 'dotenv/config';
  * Integriert einen persistenten Instanz-Counter zum Schutz des 25-Calls-Tageslimits.
  */
 export class AlphaVantageOptionService {
-    constructor() {
+    constructor(pacingManager = createPacingManager()) {
         this.apiKey = process.env.ALPHAVANTAGE_API_KEY;
+        this.pacingManager = pacingManager;
+        
         if (!this.apiKey) {
             console.warn('WARNUNG: ALPHAVANTAGE_API_KEY fehlt in den Umgebungsvariablen!');
         }
@@ -17,9 +20,8 @@ export class AlphaVantageOptionService {
         this.callCounter = 0;
         this.MAX_FREE_CALLS = 25;
 
-        // FIX: ky Version 2 nutzt 'prefix' statt 'prefixUrl'
         this.api = ky.create({
-            prefix: 'https://www.alphavantage.co',
+            prefixUrl: 'https://www.alphavantage.co',
             timeout: 30000,
             retry: {
                 limit: 3,
@@ -49,7 +51,8 @@ export class AlphaVantageOptionService {
      * @private
      */
     async _burstDelay() {
-        await new Promise(resolve => setTimeout(resolve, 3500));
+        console.log(`[Pacing] Warte 3.5 Sekunden (AlphaVantage Rate Limit)...`);
+        if (this.pacingManager) await this.pacingManager.sleepMs(3500);
     }
 
     /**

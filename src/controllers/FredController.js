@@ -2,20 +2,14 @@ import { FRED_SERIES } from '../services/FredService.js';
 
 export class FredController {
     /**
-     * @param {Object} fredRepository 
+     * @param {Object} fredRepo 
      * @param {Object} fredService 
+     * @param {Object} pacingManager
      */
-    constructor(fredRepository, fredService) {
-        this.fredRepository = fredRepository;
+    constructor(fredRepo, fredService, pacingManager) {
+        this.fredRepo = fredRepo;
         this.fredService = fredService;
-    }
-
-    /**
-     * Helper für künstliche Verzögerung (Pacing)
-     */
-    async delay(ms) {
-        if (process.env.NODE_ENV === 'test') return;
-        return new Promise(resolve => setTimeout(resolve, ms));
+        this.pacingManager = pacingManager;
     }
 
     /**
@@ -26,19 +20,19 @@ export class FredController {
         console.log(`Hole Daten ab: ${startDate}...`);
 
         const tgaData = await this.fredService.fetchObservations(FRED_SERIES.TGA_BALANCE, startDate);
-        await this.delay(1000);
+        await this.pacingManager.sleepMs(1000);
         const rrpData = await this.fredService.fetchObservations(FRED_SERIES.REVERSE_REPO, startDate);
-        await this.delay(1000);
+        await this.pacingManager.sleepMs(1000);
         const fedData = await this.fredService.fetchObservations(FRED_SERIES.FED_BALANCE_SHEET, startDate);
-        await this.delay(1000);
+        await this.pacingManager.sleepMs(1000);
         const btfpData = await this.fredService.fetchObservations(FRED_SERIES.BANK_TERM_FUNDING_PROGRAM, startDate);
-        await this.delay(1000);
+        await this.pacingManager.sleepMs(1000);
         const bankReservesData = await this.fredService.fetchObservations(FRED_SERIES.BANK_RESERVES_FED_WEEKLY, startDate);
-        await this.delay(1000);
+        await this.pacingManager.sleepMs(1000);
         const sofrData = await this.fredService.fetchObservations(FRED_SERIES.SECURED_OVERNIGHT_FINANCING_RATE, startDate);
-        await this.delay(1000);
+        await this.pacingManager.sleepMs(1000);
         const depositsAllData = await this.fredService.fetchObservations(FRED_SERIES.DEPOSITS_ALL, startDate);
-        await this.delay(1000);
+        await this.pacingManager.sleepMs(1000);
         const demandDepositsData = await this.fredService.fetchObservations(FRED_SERIES.DEMAND_DEPOSITS, startDate);
 
         console.log('Daten erfolgreich geladen. Führe Merge nach Datum durch...');

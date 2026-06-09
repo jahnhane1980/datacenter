@@ -7,19 +7,13 @@ export class SentimentNewsController {
      * @param {Object} tickerRepo 
      * @param {Object} sentimentNewsRepo 
      * @param {Object} sentimentNewsService 
+     * @param {Object} pacingManager
      */
-    constructor(tickerRepo, sentimentNewsRepo, sentimentNewsService) {
+    constructor(tickerRepo, sentimentNewsRepo, sentimentNewsService, pacingManager) {
         this.tickerRepo = tickerRepo;
         this.sentimentNewsRepo = sentimentNewsRepo;
         this.sentimentNewsService = sentimentNewsService;
-    }
-
-    /**
-     * Helper für den präventiven Delay
-     */
-    async delay(ms) {
-        if (process.env.NODE_ENV === 'test') return;
-        return new Promise(resolve => setTimeout(resolve, ms));
+        this.pacingManager = pacingManager;
     }
 
     /**
@@ -233,7 +227,7 @@ export class SentimentNewsController {
                 }
                 console.log(`[${ticker}] Upserts erfolgreich: ${sentimentSuccess}, Fehler: ${sentimentErrors}`);
 
-                await this.delay(1500);
+                if (this.pacingManager) await this.pacingManager.sleepMs(1500);
 
             } catch (error) {
                 if (error.response && (error.response.status === 429 || error.response.status === 402)) {
@@ -244,7 +238,7 @@ export class SentimentNewsController {
                     break; 
                 } else {
                     console.error(`Fehler beim API-Abruf für ${ticker}:`, error.message);
-                    await this.delay(1500);
+                    if (this.pacingManager) await this.pacingManager.sleepMs(1500);
                 }
             }
         }

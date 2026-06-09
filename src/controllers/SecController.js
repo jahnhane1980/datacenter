@@ -9,15 +9,14 @@ export class SecController {
     /**
      * @param {Object} secRepo 
      * @param {Object} secService 
+     * @param {Object} llmService 
+     * @param {Object} pacingManager 
      */
-    constructor(secRepo, secService) {
+    constructor(secRepo, secService, llmService, pacingManager) {
         this.secRepo = secRepo;
         this.secService = secService;
-    }
-
-    async delay(ms) {
-        if (process.env.NODE_ENV === 'test') return;
-        return new Promise(resolve => setTimeout(resolve, ms));
+        this.llmService = llmService;
+        this.pacingManager = pacingManager;
     }
 
     _cleanHtmlText(html) {
@@ -55,88 +54,6 @@ export class SecController {
         return results;
     }
 
-    async _analyzeSnippetWithGroq(snippet, metricName, ticker, archetype) {
-        const GROQ_API_KEY = process.env.GROQ_API_KEY;
-        if (!GROQ_API_KEY) {
-            throw new Error('GROQ_API_KEY fehlt in der .env oder den GitHub Secrets!');
-        }
-
-        let baseInstruction = '';
-
-        if (archetype === 'HYPERSCALER') {
-            baseInstruction = `Du analysierst ${ticker}, einen großen Tech-Hyperscaler (Nachfrageseite). 
-            Finde heraus, ob das Unternehmen seine CapEx-Infrastrukturausgaben für KI/Server aggressiv hochfährt, optimiert oder drosselt.`;
-        } else if (archetype === 'FOUNDRY') {
-            baseInstruction = `Du analysierst ${ticker}, einen Halbleiter-Auftragsfertiger/Packager (Angebotsseite).
-            Finde explizite Aussagen zur Fabrik-Auslastung (Capacity Utilization) oder zu Lagerkorrekturen (Inventory Adjustments) der Kunden.`;
-        } else if (archetype === 'EQUIPMENT') {
-            baseInstruction = `Du analysierst ${ticker}, einen Zulieferer für Fabrikmaschinen (Equipment Frühindikator).
-            Finde heraus, ob sich die Auftragsbücher (Order Intake, Bookings, Backlog) füllen oder leeren.`;
-        } else if (archetype === 'MEMORY') {
-            baseInstruction = `Du analysierst ${ticker}, einen High-Bandwidth-Memory Speicherproduzenten.
-            Finde heraus, wie sich die Nachfrage nach HBM entwickelt und ob die Preise (Average Selling Prices) steigen oder fallen.`;
-        } else if (archetype === 'SOFTWARE') {
-            baseInstruction = `Du analysierst ${ticker}, ein Enterprise-Softwareunternehmen (SaaS).
-            Finde heraus, wie sich das verbleibende Auftrags- oder Abo-Volumen (cRPO / Deferred Revenue) entwickelt und ob KI-Software erfolgreich monetarisiert wird.`;
-        } else {
-            baseInstruction = `Analysiere das Text-Snippet für die Metrik ${metricName}.`;
-        }
-
-        const systemPrompt = `${baseInstruction}
-        Regeln:
-        1. Entscheide dich beim Trend für exakt einen dieser Vektoren:
-           - 'EXPANSION' (Ausbau, Erhöhung, starkes Wachstum)
-           - 'CONTRACTION' (Schrumpfung, Kürzung, Einbruch)
-           - 'OPTIMIZATION' (Nutzung vorhandener Ressourcen optimieren, Lebenszeit verlängern, zurückhaltend)
-           - 'OVERCAPACITY' (Warnsignal! Auslastung fällt, Kunden stornieren, Lager laufen voll)
-           - 'FLAT' (Keine nennenswerte Änderung)
-        2. Extrahiere das prägnanteste Original-Zitat (maximal 1-2 Sätze) als 'extracted_quote'.
-        3. WICHTIG: Ignoriere generische Erklärungen aus dem Rechnungswesen, rechtliche Patentstreitigkeiten sowie hypothetische Risikofaktoren (z.B. 'If demand drops...'). Bewerte AUSSCHLIESSLICH tatsächliche, physische Geschäftsereignisse und aktuelle Quartalsergebnisse.
-        
-        Du musst AUSSCHLIESSLICH in JSON antworten. Nutze exakt dieses JSON-Format:
-        {
-          "trend": "EXPANSION",
-          "extracted_quote": "Original-Satz aus dem Text",
-          "ai_reasoning": "Kurze Begründung"
-        }`;
-
-        try {
-            const response = await ky.post('https://api.groq.com/openai/v1/chat/completions', {
-                headers: {
-                    'Authorization': `Bearer ${GROQ_API_KEY}`,
-                    'Content-Type': 'application/json'
-                },
-                json: {
-                    model: 'llama-3.1-8b-instant', 
-                    messages: [
-                        { role: 'system', content: systemPrompt },
-                        { role: 'user', content: `Hier sind die Textausschnitte:\n\n${snippet}` }
-                    ],
-                    response_format: { type: 'json_object' },
-                    temperature: 0.1,
-                    max_tokens: 1024
-                },
-                timeout: 30000
-            }).json();
-
-            const replyContent = response.choices[0].message.content.trim();
-            return JSON.parse(replyContent);
-        } catch (error) {
-            if (error.response && error.response.status === 429) {
-                let exactReason = "Unbekanntes Limit";
-                try {
-                    const errorBody = await error.response.json();
-                    if (errorBody.error && errorBody.error.message) {
-                        exactReason = errorBody.error.message;
-                    }
-                } catch (e) {}
-                throw new Error(`429|${exactReason}`); 
-            }
-            
-            console.error(`  [GROQ FEHLER] bei ${ticker} (${metricName}):`, error.message);
-            return null;
-        }
-    }
 
     async runCikSync() {
         console.log('Starte lokalen SEC CIK-Sync...');
@@ -221,6 +138,7 @@ export class SecController {
 
                         const dateObj = new Date(filingDateStr);
                         const fiscalYear = dateObj.getFullYear();
+                        if (this.pacingManager) await this.pacingManager.humanDelay(2, 6); 
                         const period = `Q${Math.floor(dateObj.getMonth() / 3) + 1}`; 
 
                         const exists = await this.secRepo.fmpFundamentalExists(company.ticker, fiscalYear, period);
@@ -334,47 +252,27 @@ export class SecController {
                             console.log(`  -> Groq LPU analysiert Kontext für Metrik: '${metricName}'...`);
                             
                             let aiResult = null;
-                            let retryCount = 0;
-                            const maxRetries = 2; 
-                            let success = false;
+                            try {
+                                console.log(`  [INFO] Proaktiver Pacer: Warte 4 Sekunden...`);
+                                if (this.pacingManager) await this.pacingManager.sleepMs(4000); 
 
-                            while (retryCount <= maxRetries && !success) {
-                                try {
-                                    console.log(`  [INFO] Proaktiver Pacer: Warte 4 Sekunden...`);
-                                    await this.delay(4000); 
+                                aiResult = await this.llmService.analyzeSecSnippet(combinedContext, metricName, company.ticker, company.archetype);
 
-                                    aiResult = await this._analyzeSnippetWithGroq(combinedContext, metricName, company.ticker, company.archetype);
-
-                                    if (aiResult) {
-                                        aiSignalsToSave.push({
-                                            filing_id: newFilingId,
-                                            ticker: company.ticker,
-                                            filing_date: filing.filingDate,
-                                            signal_category: metricName,
-                                            trend: aiResult.trend,
-                                            extracted_quote: aiResult.extracted_quote,
-                                            ai_reasoning: aiResult.ai_reasoning
-                                        });
-                                        success = true;
-                                    } else {
-                                        break;
-                                    }
-                                } catch (error) {
-                                    if (error.message.startsWith('429')) {
-                                        retryCount++;
-                                        const exactReason = error.message.split('|')[1] || "Unbekannt";
-                                        console.log(`  [WARNUNG] 🧨 Groq Rate Limit (429)! Grund: ${exactReason}`);
-                                        
-                                        if (exactReason.includes('per day')) {
-                                            console.log(`  [ABBRUCH] Tageslimit erreicht. Skript muss morgen wieder laufen.`);
-                                            throw error; 
-                                        }
-
-                                        console.log(`  -> Zwangspause: 45 Sekunden (Versuch ${retryCount}/${maxRetries})...`);
-                                        await this.delay(45000); 
-                                    } else {
-                                        break;
-                                    }
+                                if (aiResult) {
+                                    aiSignalsToSave.push({
+                                        filing_id: newFilingId,
+                                        ticker: company.ticker,
+                                        filing_date: filing.filingDate,
+                                        signal_category: metricName,
+                                        trend: aiResult.trend,
+                                        extracted_quote: aiResult.extracted_quote,
+                                        ai_reasoning: aiResult.ai_reasoning
+                                    });
+                                }
+                            } catch (error) {
+                                if (error.message.startsWith('429')) {
+                                    console.log(`  [ABBRUCH] Tageslimit erreicht. Skript muss morgen wieder laufen.`);
+                                    throw error; 
                                 }
                             }
                         }

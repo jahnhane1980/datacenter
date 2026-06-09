@@ -2,7 +2,7 @@
   "name": "datacenter",
   "version": "1.0.0",
   "description": "Connects and syncs data with Supabase",
-  "main": "index.js",
+  "main": "sync.js",
   "type": "module",
   "scripts": {
     "sync:daily": "node sync-daily.js",

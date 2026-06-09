@@ -11,11 +11,13 @@ export class QRAController {
      * @param {Object} qraRepository 
      * @param {Object} qraService 
      * @param {Object} llmService 
+     * @param {Object} pacingManager 
      */
-    constructor(qraRepository, qraService, llmService) {
+    constructor(qraRepository, qraService, llmService, pacingManager) {
         this.qraRepository = qraRepository;
         this.qraService = qraService;
         this.llmService = llmService;
+        this.pacingManager = pacingManager;
     }
 
     /**
@@ -106,7 +108,7 @@ export class QRAController {
 
             if (page > 0 && !isPageCached && process.env.NODE_ENV !== 'test') {
                 console.log(`  [Pacing] Warte 4 Sekunden, bevor Seite ${page} aufgerufen wird...`);
-                await new Promise(res => setTimeout(res, 4000));
+                if (this.pacingManager) await this.pacingManager.sleepMs(4000);
             }
 
             const pageUrl = `${TREASURY_BASE_URL}/news/press-releases?page=${page}`;
@@ -138,7 +140,7 @@ export class QRAController {
 
                 if (!isArticleCached && process.env.NODE_ENV !== 'test') {
                     console.log(`  [Pacing] Warte 3 Sekunden vor dem Artikel-Download...`);
-                    await new Promise(res => setTimeout(res, 3000));
+                    if (this.pacingManager) await this.pacingManager.sleepMs(3000);
                 }
                 
                 const articleHtml = await this.fetchOrLoadHtml(articleUrl, articleFilename, kyOptions);

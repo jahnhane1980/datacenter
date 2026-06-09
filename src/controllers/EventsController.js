@@ -2,31 +2,28 @@ import { SYNC_JOBS } from '../repositories/TickerRepository.js';
 
 export class EventsController {
     /**
-     * @param {Object} tickerRepo 
-     * @param {Object} eventRepo 
-     * @param {Object} finnhubService 
-     * @param {Object} httpClient - The ky instance or similar
+     * @param {Object} tickerRepo
+     * @param {Object} eventRepo
+     * @param {Object} finnhubService
+     * @param {Object} httpClient
+     * @param {Object} pacingManager
      */
-    constructor(tickerRepo, eventRepo, finnhubService, httpClient) {
+    constructor(tickerRepo, eventRepo, finnhubService, httpClient, pacingManager) {
         this.tickerRepo = tickerRepo;
         this.eventRepo = eventRepo;
         this.finnhubService = finnhubService;
         this.httpClient = httpClient;
+        this.pacingManager = pacingManager;
     }
 
     _formatDate(date) {
         return date.toISOString().split('T')[0];
     }
 
-    async _delay(ms) {
-        if (process.env.NODE_ENV === 'test') return;
-        return new Promise(resolve => setTimeout(resolve, ms));
-    }
-
     async runDailySync() {
         console.log('=== 📅 STARTE WEEKLY EVENT CALENDAR SYNC ===');
 
-        const allTickers = await this.tickerRepo.getTickersForJob(SYNC_JOBS.EVENTS);
+        const allTickers = await this.tickerRepository.getTickersForJob(SYNC_JOBS.EVENTS);
         
         if (!allTickers || allTickers.length === 0) {
             console.log('Keine Ticker für EVENTS in der Datenbank gefunden. Breche Sync ab.');
@@ -111,7 +108,7 @@ export class EventsController {
             throw new Error('ALPHAVANTAGE_API_KEY fehlt in der .env Datei!');
         }
 
-        const allTickers = await this.tickerRepo.getTickersForJob(SYNC_JOBS.EVENTS);
+        const allTickers = await this.tickerRepository.getTickersForJob(SYNC_JOBS.EVENTS);
 
         if (!allTickers || allTickers.length === 0) {
             console.log('Keine Ticker für EVENTS gefunden.');
@@ -167,7 +164,7 @@ export class EventsController {
 
             if (i < allTickers.length - 1) {
                 console.log(`⏳ Warte 15 Sekunden (Burst-Limit Schutz)...`);
-                await this._delay(15000);
+                if (this.pacingManager) await this.pacingManager.sleepMs(100);
             }
         }
 

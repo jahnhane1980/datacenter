@@ -1,9 +1,13 @@
+import { createPacingManager } from '../managers/PacingManager.js';
+
 export class Router {
+
     /**
      * @param {Object} supabaseClient - Injizierter DB-Client für leichtere Mock-Tests
      */
     constructor(supabaseClient) {
         this.db = supabaseClient;
+        this.pacingManager = createPacingManager();
         this.routes = {
             'cboe:sync': this.runCboeSync.bind(this),
             'daily:sync': this.runDailySync.bind(this),
@@ -69,7 +73,7 @@ export class Router {
                 const cboeRepo = new CboeRepository(this.db);
                 const cboeService = new CboeService();
                 
-                const controller = new CboeController(tickerRepo, cboeRepo, cboeService);
+                const controller = new CboeController(tickerRepo, cboeRepo, cboeService, this.pacingManager);
                 await controller.runSync();
         
                 
@@ -115,7 +119,7 @@ export class Router {
                 });
         
                 // Backfill doesn't use finnhubService, we pass null
-                const controller = new EventsController(tickerRepo, eventRepo, null, api);
+                const controller = new EventsController(tickerRepo, eventRepo, null, api, this.pacingManager);
         
                 await controller.runBackfill();
         
@@ -133,7 +137,7 @@ export class Router {
                 const eventRepo = new EventRepository(this.db);
                 const finnhubService = new FinnhubService();
                 // Daily Sync doesn't use ky directly, so we can pass null for httpClient
-                const controller = new EventsController(tickerRepo, eventRepo, finnhubService, null);
+                const controller = new EventsController(tickerRepo, eventRepo, finnhubService, null, this.pacingManager);
         
                 await controller.runDailySync();
         
@@ -149,7 +153,7 @@ export class Router {
                 const finraRepo = new FinraRepository(this.db);
                 const finraService = new FinraService();
                 
-                const controller = new FinraController(tickerRepo, finraRepo, finraService);
+                const controller = new FinraController(tickerRepo, finraRepo, finraService, this.pacingManager);
                 await controller.runBackfill();
         
                 
@@ -166,7 +170,7 @@ export class Router {
                 const finraService = new FinraService();
         
                 // Controller instanziieren und ausführen
-                const controller = new FinraController(tickerRepo, finraRepo, finraService);
+                const controller = new FinraController(tickerRepo, finraRepo, finraService, this.pacingManager);
                 await controller.runSync();
                 
                 
@@ -205,7 +209,7 @@ export class Router {
         const fredService = createFredService();
                 const fredRepository = createFredRepository(this.db);
                 
-                const controller = new FredController(fredRepository, fredService);
+                const controller = new FredController(fredRepository, fredService, this.pacingManager);
         
                 await controller.runBackfill();
         
@@ -219,7 +223,7 @@ export class Router {
         const fredService = createFredService();
                 const fredRepository = createFredRepository(this.db);
                 
-                const controller = new FredController(fredRepository, fredService);
+                const controller = new FredController(fredRepository, fredService, this.pacingManager);
         
                 await controller.runDailySync();
         
@@ -362,7 +366,7 @@ export class Router {
                 const llmService = createLLMService();
                 
                 // QRAService wird im Backfill nicht benötigt, hier parst das LLM
-                const controller = new QRAController(qraRepository, null, llmService);
+                const controller = new QRAController(qraRepository, null, llmService, this.pacingManager);
                 await controller.runBackfill();
         
                 
@@ -377,7 +381,7 @@ export class Router {
                 const qraRepository = createQRARepository(this.db);
                 
                 // LLMService wird hier im Daily Sync nicht benötigt
-                const controller = new QRAController(qraRepository, qraService, null);
+                const controller = new QRAController(qraRepository, qraService, null, this.pacingManager);
                 await controller.runSync();
                 
                 
@@ -386,51 +390,52 @@ export class Router {
     async runRegulationSync() {
         const { createRegulationService } = await import('./src/services/RegulationService.js');
         const { createRegulationRepository } = await import('./src/repositories/RegulationRepository.js');
+        const { createLLMService } = await import('./src/services/LLMService.js');
         const { RegulationController } = await import('./src/controllers/RegulationController.js');
-        const { GoogleGenAI } = await import('@google/genai');
-        const regulationService = createRegulationService();
-                const regulationRepository = createRegulationRepository(this.db);
-                const aiClient = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-                
-                const controller = new RegulationController(regulationRepository, regulationService, aiClient);
-                
-                const TEST_MODE = false;
-                await controller.runRegulationCheck(TEST_MODE);
         
+        const regulationService = createRegulationService();
+        const regulationRepository = createRegulationRepository(this.db);
+        const llmService = createLLMService();
                 
+        const controller = new RegulationController(regulationRepository, regulationService, llmService);
+                
+        const TEST_MODE = false;
+        await controller.runRegulationCheck(TEST_MODE);
     }
 
     async runSecCiks() {
         const { createSecService } = await import('./src/services/SecService.js');
         const { createSecRepository } = await import('./src/repositories/SecRepository.js');
+        const { createLLMService } = await import('./src/services/LLMService.js');
         const { SecController } = await import('./src/controllers/SecController.js');
+        
         const secService = createSecService();
-                const secRepository = createSecRepository(this.db);
-                const controller = new SecController(secRepository, secService);
+        const secRepository = createSecRepository(this.db);
+        const llmService = createLLMService();
+        const controller = new SecController(secRepository, secService, llmService, this.pacingManager);
         
-                await controller.runCikSync();
-        
-                
+        await controller.runCikSync();
     }
 
     async runSecFilings() {
         const { createSecService } = await import('./src/services/SecService.js');
         const { createSecRepository } = await import('./src/repositories/SecRepository.js');
+        const { createLLMService } = await import('./src/services/LLMService.js');
         const { SecController } = await import('./src/controllers/SecController.js');
+        
         const secService = createSecService();
-                const secRepository = createSecRepository(this.db);
-                const controller = new SecController(secRepository, secService);
+        const secRepository = createSecRepository(this.db);
+        const llmService = createLLMService();
+        const controller = new SecController(secRepository, secService, llmService, this.pacingManager);
         
-                await controller.runMasterSync();
-        
-                
+        await controller.runMasterSync();
     }
 
     async runSectorRotationSync() {
         const { SectorRotationController } = await import('./src/controllers/SectorRotationController.js');
         const { createTickerRepository } = await import('./src/repositories/TickerRepository.js');
-                const { CandleRepository } = await import('./src/repositories/CandleRepository.js');
-                const { SectorRotationRepository } = await import('./src/repositories/SectorRotationRepository.js');
+        const { CandleRepository } = await import('./src/repositories/CandleRepository.js');
+        const { SectorRotationRepository } = await import('./src/repositories/SectorRotationRepository.js');
         
                 // Repositories initialisieren
                 const tickerRepo = createTickerRepository(this.db);
@@ -453,7 +458,7 @@ export class Router {
                 const sentimentNewsRepository = createSentimentNewsRepository(this.db);
                 const tickerRepository = createTickerRepository(this.db);
         
-                const controller = new SentimentNewsController(tickerRepository, sentimentNewsRepository, sentimentNewsService);
+                const controller = new SentimentNewsController(tickerRepository, sentimentNewsRepository, sentimentNewsService, this.pacingManager);
                 await controller.runBackfill();
         
                 
@@ -468,7 +473,7 @@ export class Router {
                 const sentimentNewsRepository = createSentimentNewsRepository(this.db);
                 const tickerRepository = createTickerRepository(this.db);
         
-                const controller = new SentimentNewsController(tickerRepository, sentimentNewsRepository, sentimentNewsService);
+                const controller = new SentimentNewsController(tickerRepository, sentimentNewsRepository, sentimentNewsService, this.pacingManager);
                 await controller.runDailySync();
         
                 

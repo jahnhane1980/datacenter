@@ -14,11 +14,17 @@ vi.mock('ky', () => {
 
 describe('PolygonIoService', () => {
     let service;
+    let mockPacingManager;
 
     beforeEach(() => {
-        process.env.POLYGONIO_API_KEY = 'TEST_KEY';
-        service = new PolygonIoService();
-        service.sleep = vi.fn().mockResolvedValue(); // bypass sleep
+        process.env.POLYGONIO_API_KEY = 'TEST_API_KEY';
+        mockPacingManager = {
+            sleepMs: vi.fn().mockResolvedValue(),
+            sleepSeconds: vi.fn().mockResolvedValue(),
+            humanDelay: vi.fn().mockResolvedValue(),
+            scrapingDelay: vi.fn().mockResolvedValue()
+        };
+        service = new PolygonIoService(mockPacingManager);
     });
 
     afterEach(() => {
