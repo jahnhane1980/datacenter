@@ -25,7 +25,7 @@ jobs:
         run: npm install
 
       - name: Fiscal Sync ausführen
-        run: node sync-fiscal.js
+        run: node sync.js --task fiscal
         env:
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}

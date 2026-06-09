@@ -1,4 +1,4 @@
-import { supabaseClient } from '../core/SupabaseClient.js';
+
 
 const DB_TABLE = 'ticker';
 
@@ -12,7 +12,7 @@ export const SYNC_JOBS = Object.freeze({
     SECTOR_ROTATION: 'SECTOR_ROTATION'
 });
 
-export function createTickerRepository() {
+export function createTickerRepository(supabaseClient) {
     /**
      * Holt alle Ticker aus der Datenbank, optional gefiltert nach Typ.
      * @param {number|null} typeId - Die ID des Ticker-Typs (z.B. 3 für STOCK). Null = Alle.

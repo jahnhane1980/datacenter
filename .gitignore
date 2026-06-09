@@ -6,3 +6,4 @@ tmp/
 snippets/
 supabase/.temp
 supabase/seed.sql
+tmp_downloads/

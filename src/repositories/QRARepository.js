@@ -1,8 +1,8 @@
-import { supabaseClient } from '../core/SupabaseClient.js';
+
 
 const DB_TABLE = 'treasury_qra_estimates';
 
-export function createQRARepository() {
+export function createQRARepository(supabaseClient) {
     /**
      * Erstellt oder aktualisiert einen QRA-Schätzwert (Quarterly Refunding Announcement).
      * Nutzt den upsert-Mechanismus von Supabase auf Basis des Composite Primary Keys 'target_quarter, release_date'.

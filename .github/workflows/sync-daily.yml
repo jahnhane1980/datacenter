@@ -27,7 +27,7 @@ jobs:
         run: npm install
 
       - name: Daily Sync ausführen
-        run: node sync-daily.js
+        run: node sync.js --task daily
         env:
           POLYGONIO_API_KEY: ${{ secrets.POLYGONIO_API_KEY }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}

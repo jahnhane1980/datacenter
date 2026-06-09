@@ -1,10 +1,10 @@
-import { supabaseClient } from '../core/SupabaseClient.js';
+
 
 const DB_TABLE_DEFINITION = 'macro_global_indicator_definition';
 const DB_TABLE_VALUES = 'macro_global_indicator_values';
 const DB_TABLE_FX_RATES = 'macro_fx_rates_daily';
 
-export function createGlobalMacroRepository() {
+export function createGlobalMacroRepository(supabaseClient) {
     
     /**
      * Lädt das globale Lexikon (die zu synchronisierenden Indikatoren).

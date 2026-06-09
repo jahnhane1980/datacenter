@@ -1,10 +1,10 @@
-import { supabaseClient } from '../core/SupabaseClient.js';
+
 
 const DB_TABLE_LIQUIDITY = 'macro_us_liquidity';
 const DB_TABLE_INDICATOR_VALUES = 'macro_us_indicator_values';
 const DB_TABLE_INDICATOR_DEFINITION = 'macro_us_indicator_definition';
 
-export function createFredRepository() {
+export function createFredRepository(supabaseClient) {
     /**
      * Erstellt oder aktualisiert einen Makro-Liquiditäts-Datensatz an einem bestimmten Tag.
      * Nutzt den upsert-Mechanismus von Supabase auf Basis des Primary Keys 'observation_date'.

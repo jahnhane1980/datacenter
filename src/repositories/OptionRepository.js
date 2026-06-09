@@ -88,4 +88,53 @@ export class OptionRepository {
             throw error;
         }
     }
+
+    /**
+     * Holt alle Kontrakte, die jemals ein Volumen-OI Ratio >= 1.0 hatten.
+     */
+    async getAnomalousContracts() {
+        const { data, error } = await this.supabaseClient
+            .from(DB_TABLE_CHAIN_SNAPSHOTS)
+            .select('ticker, contract_id')
+            .gte('volume_oi_ratio', 1.0);
+
+        if (error) {
+            throw new Error(`Fehler beim Abfragen der Anomalien-Historie: ${error.message}`);
+        }
+        return data || [];
+    }
+
+    /**
+     * Holt den neuesten Bar-Zeitstempel für einen bestimmten Kontrakt.
+     */
+    async getLatestBarTimestampForContract(contractId) {
+        const { data, error } = await this.supabaseClient
+            .from(DB_TABLE_CONTRACT_BARS)
+            .select('bar_timestamp')
+            .eq('contract_id', contractId)
+            .order('bar_timestamp', { ascending: false })
+            .limit(1);
+
+        if (error) {
+            throw new Error(`Lookup fehlgeschlagen für ${contractId}: ${error.message}`);
+        }
+        return (data && data.length > 0) ? data[0].bar_timestamp : null;
+    }
+
+    /**
+     * Holt den ältesten Bar-Zeitstempel für einen bestimmten Kontrakt.
+     */
+    async getOldestBarTimestampForContract(contractId) {
+        const { data, error } = await this.supabaseClient
+            .from(DB_TABLE_CONTRACT_BARS)
+            .select('bar_timestamp')
+            .eq('contract_id', contractId)
+            .order('bar_timestamp', { ascending: true })
+            .limit(1);
+
+        if (error) {
+            throw new Error(`Oldest Lookup fehlgeschlagen für ${contractId}: ${error.message}`);
+        }
+        return (data && data.length > 0) ? data[0].bar_timestamp : null;
+    }
 }

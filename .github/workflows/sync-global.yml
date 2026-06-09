@@ -25,7 +25,7 @@ jobs:
         run: npm install
 
       - name: Global Macro Sync ausführen
-        run: node sync-global.js
+        run: node sync.js --task global
         env:
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}

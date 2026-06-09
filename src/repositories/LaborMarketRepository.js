@@ -1,9 +1,9 @@
-import { supabaseClient } from '../core/SupabaseClient.js';
+
 
 const DB_TABLE_SERIES = 'labor_market_series';
 const DB_TABLE_DATA_POINTS = 'labor_market_data_points';
 
-export function createLaborMarketRepository() {
+export function createLaborMarketRepository(supabaseClient) {
     
     const getSeries = async () => {
         const { data, error } = await supabaseClient

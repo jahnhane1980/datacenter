@@ -25,7 +25,7 @@ jobs:
         run: npm install
 
       - name: FRED Sync ausführen
-        run: node sync-fred.js
+        run: node sync.js --task fred
         env:
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}

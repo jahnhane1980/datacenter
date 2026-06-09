@@ -1,10 +1,10 @@
-import { supabaseClient } from '../core/SupabaseClient.js';
+
 
 const DB_TABLE_SENTIMENT = 'market_sentiment_daily';
 const DB_TABLE_NEWS_FEED = 'market_news_feed';
 const DB_TABLE_SYNC_QUEUE = 'market_sync_queue';
 
-export function createSentimentNewsRepository() {
+export function createSentimentNewsRepository(supabaseClient) {
     
     /**
      * Schreibt einen täglichen Sentiment-Score in die Datenbank.

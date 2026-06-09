@@ -1,8 +1,8 @@
-import { supabaseClient } from '../core/SupabaseClient.js';
+
 
 const DB_TABLE = 'treasury_auctions';
 
-export function createFiscalRepository() {
+export function createFiscalRepository(supabaseClient) {
     /**
      * Erstellt oder aktualisiert einen Auktions-Datensatz.
      * Nutzt den upsert-Mechanismus von Supabase auf Basis des Primary Keys 'cusip'.

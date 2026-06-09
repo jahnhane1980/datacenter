@@ -1,8 +1,5 @@
 import ky from 'ky';
-import { createRequire } from 'module';
-
-const require = createRequire(import.meta.url);
-const { EdgarClient } = require('sec-edgar-toolkit');
+import { EdgarClient } from 'sec-edgar-toolkit';
 
 export function createSecService(userAgent = process.env.SEC_USER_AGENT) {
     if (!userAgent) {

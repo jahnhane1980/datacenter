@@ -28,7 +28,7 @@ jobs:
         run: npm install
 
       - name: Sector Rotation Sync ausführen
-        run: node sync-sector-rotation.js
+        run: node sync.js --task sector-rotation
         env:
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}

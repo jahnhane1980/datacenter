@@ -1,8 +1,12 @@
-import { supabaseClient } from '../core/SupabaseClient.js';
+
 
 const DB_TABLE = 'market_finra_short_volume';
 
 export class FinraRepository {
+    constructor(supabaseClient) {
+        this.supabaseClient = supabaseClient;
+    }
+
     /**
      * Erstellt oder aktualisiert einen Short-Sale-Datensatz für einen Ticker an einem bestimmten Tag.
      * @param {number} tickerId - Die ID des Tickers aus der Tabelle 'ticker'.
@@ -12,7 +16,7 @@ export class FinraRepository {
      * @throws {Error} Wenn der Upsert in der Supabase-Datenbank fehlschlägt.
      */
     async upsertShortData(tickerId, timestamp, shortVolume, totalVolume) {
-        const { error } = await supabaseClient
+        const { error } = await this.supabaseClient
             .from(DB_TABLE)
             .upsert(
                 { 
@@ -38,15 +42,15 @@ export class FinraRepository {
      * @throws {Error} Wenn die Abfrage fehlschlägt.
      */
     async getLatestTimestamp(tickerId = null) {
-        let query = supabaseClient
+        let query = this.supabaseClient
             .from(DB_TABLE)
-            .select('timestamp')
-            .order('timestamp', { ascending: false })
-            .limit(1);
+            .select('timestamp');
 
         if (tickerId) {
             query = query.eq('ticker', tickerId);
         }
+
+        query = query.order('timestamp', { ascending: false }).limit(1);
 
         const { data, error } = await query;
 
@@ -64,7 +68,7 @@ export class FinraRepository {
      * @throws {Error} Wenn die Gruppierungsabfrage fehlschlägt.
      */
     async getExistingMonths() {
-        const { data, error } = await supabaseClient
+        const { data, error } = await this.supabaseClient
             .from(DB_TABLE)
             .select('timestamp')
             .order('timestamp', { ascending: false });

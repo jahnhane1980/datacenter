@@ -1,14 +1,14 @@
 import ky from 'ky';
 
-const GROQ_API_KEY = process.env.GROQ_API_KEY;
-
-if (!GROQ_API_KEY) {
-    throw new Error('GROQ_API_KEY fehlt in der .env oder den GitHub Secrets!');
-}
-
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 export function createLLMService() {
+    const GROQ_API_KEY = process.env.GROQ_API_KEY;
+
+    if (!GROQ_API_KEY) {
+        throw new Error('GROQ_API_KEY fehlt in der .env oder den GitHub Secrets!');
+    }
+
     
     /**
      * Sendet einen unstrukturierten QRA-Artikel an Groq und extrahiert die JSON-Daten.

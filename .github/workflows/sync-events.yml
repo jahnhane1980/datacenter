@@ -27,7 +27,7 @@ jobs:
         run: npm install
 
       - name: Event Sync ausführen
-        run: node sync-events.js
+        run: node sync.js --task events
         env:
           FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
