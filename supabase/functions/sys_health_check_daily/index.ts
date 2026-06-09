@@ -17,8 +17,9 @@ serve(async (req)=>{
   }
   const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
   try {
-    // Aggregierte Daten aus der sys_ View holen
-    const { data: summary, error } = await supabase.from('sys_daily_insert_summary').select('*');
+    // Aggregierte Daten direkt aus der neuen sys_insert_logs Tabelle für heute holen
+    const todayStr = new Date().toISOString().split('T')[0];
+    const { data: summary, error } = await supabase.from('sys_insert_logs').select('*').eq('log_date', todayStr);
     if (error) throw error;
     if (!summary || summary.length === 0) {
       return new Response(JSON.stringify({
@@ -29,12 +30,12 @@ serve(async (req)=>{
     }
     // HTML-Tabellenzeilen dynamisch generieren
     const tableRows = summary.map((row)=>{
-      const total = row.insert_count + row.update_count;
+      const total = row.counter_insert + row.counter_update;
       return `
           <tr style="border-bottom: 1px solid #eee;">
             <td style="padding: 10px; font-family: monospace; font-size: 13px; color: #333;">${row.table_name}</td>
-            <td style="padding: 10px; text-align: center; font-weight: ${row.insert_count > 0 ? 'bold' : 'normal'}; color: ${row.insert_count > 0 ? '#10b981' : '#666'};">${row.insert_count}</td>
-            <td style="padding: 10px; text-align: center; font-weight: ${row.update_count > 0 ? 'bold' : 'normal'}; color: ${row.update_count > 0 ? '#3b82f6' : '#666'};">${row.update_count}</td>
+            <td style="padding: 10px; text-align: center; font-weight: ${row.counter_insert > 0 ? 'bold' : 'normal'}; color: ${row.counter_insert > 0 ? '#10b981' : '#666'};">${row.counter_insert}</td>
+            <td style="padding: 10px; text-align: center; font-weight: ${row.counter_update > 0 ? 'bold' : 'normal'}; color: ${row.counter_update > 0 ? '#3b82f6' : '#666'};">${row.counter_update}</td>
             <td style="padding: 10px; text-align: right; font-weight: bold; color: #111;">${total}</td>
           </tr>
         `;
@@ -75,7 +76,11 @@ serve(async (req)=>{
       })
     });
     // Alte Log-Einträge bereinigen (behält die letzten 3 Tage als Backup im sys_-Log)
-    await supabase.from('sys_insert_logs').delete().lt('created_at', new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString());
+    const threeDaysAgo = new Date();
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+    const threeDaysAgoStr = threeDaysAgo.toISOString().split('T')[0];
+    await supabase.from('sys_insert_logs').delete().lt('log_date', threeDaysAgoStr);
+    
     return new Response(JSON.stringify({
       success: true
     }), {
