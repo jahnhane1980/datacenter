@@ -4,7 +4,7 @@ import { RegulationController } from '../../src/controllers/RegulationController
 describe('RegulationController', () => {
     let mockRegulationRepo;
     let mockRegulationService;
-    let mockAiClient;
+    let mockLlmService;
     let controller;
 
     beforeEach(() => {
@@ -16,13 +16,11 @@ describe('RegulationController', () => {
         mockRegulationService = {
             fetchRecentRegulationD: vi.fn()
         };
-        mockAiClient = {
-            models: {
-                generateContent: vi.fn()
-            }
+        mockLlmService = {
+            analyzeRegulationDocument: vi.fn()
         };
 
-        controller = new RegulationController(mockRegulationRepo, mockRegulationService, mockAiClient);
+        controller = new RegulationController(mockRegulationRepo, mockRegulationService, mockLlmService);
     });
 
     it('should exit if no documents found', async () => {
@@ -39,7 +37,7 @@ describe('RegulationController', () => {
 
         await controller.runRegulationCheck();
 
-        expect(mockAiClient.models.generateContent).not.toHaveBeenCalled();
+        expect(mockLlmService.analyzeRegulationDocument).not.toHaveBeenCalled();
         expect(mockRegulationRepo.insertDocument).not.toHaveBeenCalled();
     });
 
@@ -49,9 +47,7 @@ describe('RegulationController', () => {
         ]);
         mockRegulationRepo.documentExists.mockResolvedValue(false);
 
-        mockAiClient.models.generateContent.mockResolvedValue({
-            text: JSON.stringify({ ratio_changed: false, new_ratio_percent: null, reasoning: 'No change' })
-        });
+        mockLlmService.analyzeRegulationDocument.mockResolvedValue({ ratio_changed: false, new_ratio_percent: null, reasoning: 'No change' });
 
         await controller.runRegulationCheck();
 
@@ -65,9 +61,7 @@ describe('RegulationController', () => {
         ]);
         mockRegulationRepo.documentExists.mockResolvedValue(false);
 
-        mockAiClient.models.generateContent.mockResolvedValue({
-            text: JSON.stringify({ ratio_changed: true, new_ratio_percent: 10, reasoning: 'Ratio increased' })
-        });
+        mockLlmService.analyzeRegulationDocument.mockResolvedValue({ ratio_changed: true, new_ratio_percent: 10, reasoning: 'Ratio increased' });
 
         await controller.runRegulationCheck();
 
@@ -81,7 +75,7 @@ describe('RegulationController', () => {
         ]);
         mockRegulationRepo.documentExists.mockResolvedValue(false);
 
-        mockAiClient.models.generateContent.mockRejectedValue({ status: 503, message: 'Service Unavailable' });
+        mockLlmService.analyzeRegulationDocument.mockRejectedValue({ status: 503, message: 'Service Unavailable' });
 
         await expect(controller.runRegulationCheck()).rejects.toEqual(expect.objectContaining({ status: 503 }));
     });

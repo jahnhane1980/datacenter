@@ -79,7 +79,7 @@ describe('PolygonIoService', () => {
             const onChunkReceived = vi.fn();
             await service.fetchHistoricalData('AAPL', 1, 'day', '2026-06-01', '2026-06-08', onChunkReceived);
             
-            expect(service.sleep).toHaveBeenCalledWith(60000);
+            expect(mockPacingManager.sleepMs).toHaveBeenCalledWith(65000);
             expect(onChunkReceived).toHaveBeenCalledWith([{ c: 100 }]);
         });
     });

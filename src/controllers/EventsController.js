@@ -23,7 +23,7 @@ export class EventsController {
     async runDailySync() {
         console.log('=== 📅 STARTE WEEKLY EVENT CALENDAR SYNC ===');
 
-        const allTickers = await this.tickerRepository.getTickersForJob(SYNC_JOBS.EVENTS);
+        const allTickers = await this.tickerRepo.getTickersForJob(SYNC_JOBS.EVENTS);
         
         if (!allTickers || allTickers.length === 0) {
             console.log('Keine Ticker für EVENTS in der Datenbank gefunden. Breche Sync ab.');
@@ -108,7 +108,7 @@ export class EventsController {
             throw new Error('ALPHAVANTAGE_API_KEY fehlt in der .env Datei!');
         }
 
-        const allTickers = await this.tickerRepository.getTickersForJob(SYNC_JOBS.EVENTS);
+        const allTickers = await this.tickerRepo.getTickersForJob(SYNC_JOBS.EVENTS);
 
         if (!allTickers || allTickers.length === 0) {
             console.log('Keine Ticker für EVENTS gefunden.');

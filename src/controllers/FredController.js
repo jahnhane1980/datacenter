@@ -71,7 +71,7 @@ export class FredController {
         processSeries(demandDepositsData, 'demand_deposits');
 
         console.log('Lade Makro-Definitionen für das ID-Mapping...');
-        const definitions = await this.fredRepository.getMacroIndicatorDefinitions();
+        const definitions = await this.fredRepo.getMacroIndicatorDefinitions();
         const definitionMap = {};
         for (const def of definitions) {
             definitionMap[def.series_id] = def.id;
@@ -111,7 +111,7 @@ export class FredController {
 
             try {
                 // Legacy Upsert
-                await this.fredRepository.upsertMacroData(
+                await this.fredRepo.upsertMacroData(
                     date,
                     values.tga_balance,
                     values.rrp_balance,
@@ -137,7 +137,7 @@ export class FredController {
                 }
 
                 if (newIndicatorValues.length > 0) {
-                    await this.fredRepository.upsertMacroIndicatorValues(newIndicatorValues);
+                    await this.fredRepo.upsertMacroIndicatorValues(newIndicatorValues);
                 }
 
                 successCount++;
@@ -159,7 +159,7 @@ export class FredController {
         console.log('Starte täglichen FRED Macro Liquidity Sync...');
         
         let startDate;
-        const latestDate = await this.fredRepository.getLatestObservationDate();
+        const latestDate = await this.fredRepo.getLatestObservationDate();
 
         if (latestDate) {
             startDate = latestDate;
@@ -181,7 +181,7 @@ export class FredController {
     async runBackfill() {
         console.log('Starte FRED Macro Liquidity Backfill...');
         
-        const latestDate = await this.fredRepository.getLatestObservationDate();
+        const latestDate = await this.fredRepo.getLatestObservationDate();
         
         // Nach dem initialen Lauf kann startDate hier dynamisch angepasst werden
         const startDate = '2021-01-01';

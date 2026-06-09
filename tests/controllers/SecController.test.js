@@ -35,9 +35,11 @@ describe('SecController', () => {
             fetchLatestFilings: vi.fn(),
             fetchFilingContent: vi.fn()
         };
+        const mockLlmService = {
+            analyzeSecSnippet: vi.fn()
+        };
 
-        controller = new SecController(mockSecRepo, mockSecService);
-        process.env.GROQ_API_KEY = 'test-key';
+        controller = new SecController(mockSecRepo, mockSecService, mockLlmService, {});
     });
     
     afterEach(() => {
@@ -77,16 +79,5 @@ describe('SecController', () => {
         });
     });
 
-    describe('_analyzeSnippetWithGroq', () => {
-        it('should call Groq API and return json', async () => {
-            ky.post.mockReturnValue({
-                json: vi.fn().mockResolvedValue({
-                    choices: [{ message: { content: '{"trend": "EXPANSION", "extracted_quote": "q", "ai_reasoning": "r"}' } }]
-                })
-            });
 
-            const result = await controller._analyzeSnippetWithGroq('text', 'metric', 'AAPL', 'HYPERSCALER');
-            expect(result).toEqual({ trend: 'EXPANSION', extracted_quote: 'q', ai_reasoning: 'r' });
-        });
-    });
 });

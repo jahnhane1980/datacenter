@@ -18,7 +18,11 @@ describe('FredController', () => {
             fetchObservations: vi.fn()
         };
 
-        controller = new FredController(mockFredRepo, mockFredService);
+        const mockPacingManager = {
+            sleepMs: vi.fn().mockResolvedValue()
+        };
+
+        controller = new FredController(mockFredRepo, mockFredService, mockPacingManager);
 
         vi.useFakeTimers();
         vi.setSystemTime(new Date('2026-06-08T12:00:00Z'));

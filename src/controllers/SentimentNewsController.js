@@ -1,4 +1,4 @@
-import Holidays from 'date-holidays';
+
 import { SENTIMENT_STATIC_WATCHLIST } from '../services/SentimentNewsService.js';
 import { SYNC_JOBS } from '../repositories/TickerRepository.js';
 
@@ -160,7 +160,6 @@ export class SentimentNewsController {
     async runBackfill() {
         console.log('Starte Finnhub Backfill (Sentiments) als chirurgischen Lücken-Stopfer...');
 
-        const holidays = new Holidays('US');
         const BACKFILL_TARGET_DATE = '2025-05-01';
 
         console.log('Lade dynamische Ticker für SENTIMENT aus der Datenbank...');
@@ -182,18 +181,7 @@ export class SentimentNewsController {
 
             const isCrypto = SENTIMENT_STATIC_WATCHLIST.CRYPTO.includes(ticker) || ticker.includes('BTC');
             
-            const rawMissingDates = await this.sentimentNewsRepo.getMissingSentimentDates(ticker, BACKFILL_TARGET_DATE, !isCrypto);
-
-            const validMissingDates = rawMissingDates.filter(dateStr => {
-                if (isCrypto) return true; 
-                
-                const d = new Date(dateStr);
-                const holidayList = holidays.isHoliday(d);
-                if (holidayList && holidayList.some(h => h.type === 'public' || h.type === 'bank')) {
-                    return false;
-                }
-                return true;
-            });
+            const validMissingDates = await this.sentimentNewsRepo.getMissingSentimentDates(ticker, BACKFILL_TARGET_DATE, !isCrypto);
 
             if (validMissingDates.length === 0) {
                 console.log(`[${ticker}] Keine Lücken bis ${BACKFILL_TARGET_DATE} gefunden. Komplett!`);

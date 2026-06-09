@@ -70,7 +70,7 @@ export class CboeController {
 
             } catch (error) {
                 console.error(`Fehler bei Ticker ${ticker.name}: ${error.message}`);
-                await this._humanSleep(5, 10);
+                if (this.pacingManager) await this.pacingManager.humanDelay(5, 10);
             }
         }
 

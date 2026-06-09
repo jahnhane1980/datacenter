@@ -1,0 +1,22 @@
+{
+    "2001-09-11": {
+        "is_trading_day": false,
+        "holiday_name": "9/11 Closed"
+    },
+    "2001-09-12": {
+        "is_trading_day": false,
+        "holiday_name": "9/11 Closed"
+    },
+    "2001-09-13": {
+        "is_trading_day": false,
+        "holiday_name": "9/11 Closed"
+    },
+    "2001-09-14": {
+        "is_trading_day": false,
+        "holiday_name": "9/11 Closed"
+    },
+    "2018-12-05": {
+        "is_trading_day": false,
+        "holiday_name": "National Day of Mourning (George H.W. Bush)"
+    }
+}

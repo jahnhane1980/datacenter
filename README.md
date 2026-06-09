@@ -16,3 +16,12 @@ komplexe Aufgaben
 
 schnelle, einfache Aufgaben
 /model gemini-3.5-flash
+
+SUPABASE
+supabase login (login in Browser)
+supabase link --project-ref dein-projekt-id (ersetzen) 
+>> Docker starten 
+supabase db pull
+
+Einzelne Befehle 
+supabase functions download 
