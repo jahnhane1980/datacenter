@@ -147,6 +147,21 @@ describe('LLMService', () => {
         });
     });
 
+    describe('analyzeMacroEvent', () => {
+        it('should parse and return string correctly (jsonMode=false)', async () => {
+            const expectedResponse = "Die US Treasury Auktion lief großartig. Gut für Aktien.";
+
+            ky.post.mockReturnValue({
+                json: vi.fn().mockResolvedValue({
+                    choices: [{ message: { content: expectedResponse } }]
+                })
+            });
+
+            const result = await service.analyzeMacroEvent({ type: 'test' });
+            expect(result).toEqual(expectedResponse);
+        });
+    });
+
     describe('analyzeRegulationDocument', () => {
         it('should throw if no gemini key', async () => {
             delete process.env.GEMINI_API_KEY;

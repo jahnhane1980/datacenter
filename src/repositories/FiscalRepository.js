@@ -83,8 +83,30 @@ export function createFiscalRepository(supabaseClient) {
         return data && data.length > 0 ? data[0].auction_date : null;
     };
 
+    /**
+     * Holt bestehende Auktionen anhand ihrer CUSIPs aus der Datenbank.
+     * Nützlich um zu prüfen, ob sich Felder von NULL auf einen Wert geändert haben.
+     * @param {string[]} cusips - Array von CUSIP-Strings
+     * @returns {Promise<Array>}
+     */
+    const getAuctionsByCusips = async (cusips) => {
+        if (!cusips || cusips.length === 0) return [];
+        
+        const { data, error } = await supabaseClient
+            .from(DB_TABLE)
+            .select('*')
+            .in('cusip', cusips);
+
+        if (error) {
+            throw new Error(`Fehler beim Abrufen der Auktionen via CUSIPs: ${error.message}`);
+        }
+
+        return data || [];
+    };
+
     return {
         upsertAuctionData,
-        getLatestAuctionDate
+        getLatestAuctionDate,
+        getAuctionsByCusips
     };
 }

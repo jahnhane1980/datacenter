@@ -16,6 +16,8 @@ export class LaborMarketController extends BaseController {
             const seriesList = await this.laborMarketRepo.getSeries();
             let totalSuccess = 0;
 
+            const { EventBus } = await import('../core/EventBus.js').catch(() => ({ EventBus: null }));
+
             await this.processItemsSafely(seriesList, (s) => s.id, async (series) => {
                 const latestDate = await this.laborMarketRepo.getLatestDate(series.id);
                 const startDate = latestDate ? latestDate : '2024-01-01';
@@ -32,6 +34,16 @@ export class LaborMarketController extends BaseController {
                             parseFloat(obs.value), 
                             true // Im Delta-Sync gehen wir von vorläufigen Daten aus
                         );
+
+                        // Wenn es ein neuer Datensatz ist (neuer als der bisher jüngste), feuere Event
+                        if (latestDate && new Date(obs.date) > new Date(latestDate) && EventBus) {
+                            EventBus.emit('LaborMarketController', 'labor_market_update', {
+                                series_id: series.id,
+                                date: obs.date,
+                                value: parseFloat(obs.value)
+                            });
+                        }
+
                         totalSuccess++;
                     }
                 }

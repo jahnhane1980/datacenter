@@ -16,6 +16,27 @@ export class FiscalController extends BaseController {
         let successCount = 0;
         let errorCount = 0;
 
+        // 1. Identifiziere alle Auktionen, die "gefüllt" sind (total_accepted vorhanden)
+        const filledAuctions = allAuctions.filter(a => a.total_accepted);
+        const cusipsToCheck = filledAuctions.map(a => a.cusip).filter(Boolean);
+        
+        // 2. Hole den aktuellen DB-Zustand dieser Auktionen VOR dem Upsert
+        let dbAuctionsMap = new Map();
+        if (cusipsToCheck.length > 0 && this.fiscalRepo.getAuctionsByCusips) {
+            try {
+                const dbAuctions = await this.fiscalRepo.getAuctionsByCusips(cusipsToCheck);
+                dbAuctionsMap = new Map(dbAuctions.map(a => [a.cusip, a]));
+            } catch (err) {
+                console.error('Fehler beim Prüfen des vorherigen Auktions-Status:', err.message);
+            }
+        }
+
+        // Benötigen EventBus nur, wenn wir Events werfen
+        const { EventBus } = await import('../core/EventBus.js').catch((err) => {
+            console.error('Konnte EventBus nicht importieren:', err.message);
+            return { EventBus: null };
+        });
+
         await this.processItemsSafely(allAuctions, (a) => a.cusip || a.auction_date, async (auction) => {
             try {
                 const bidToCover = auction.bid_to_cover_ratio ? parseFloat(auction.bid_to_cover_ratio) : null;
@@ -47,6 +68,25 @@ export class FiscalController extends BaseController {
                     directBidderAccepted,
                     indirectBidderAccepted
                 );
+
+                // 3. Prüfe, ob die Auktion gerade ERSTMALS ausgefüllt wurde
+                if (totalAccepted && auction.cusip) {
+                    const oldAuction = dbAuctionsMap.get(auction.cusip);
+                    const wasEmptyBefore = !oldAuction || oldAuction.total_accepted === null;
+
+                    if (wasEmptyBefore && EventBus) {
+                        EventBus.emit('FiscalController', 'treasury_auction_filled', {
+                            cusip: auction.cusip,
+                            security_type: auction.security_type,
+                            security_term: auction.security_term,
+                            auction_date: auction.auction_date,
+                            total_accepted: totalAccepted,
+                            bid_to_cover_ratio: bidToCover,
+                            high_yield: highYield
+                        });
+                    }
+                }
+
                 successCount++;
             } catch (err) {
                 console.error(`Fehler beim Upsert für Auktion am ${auction.auction_date} (${auction.security_term}):`, err.message);

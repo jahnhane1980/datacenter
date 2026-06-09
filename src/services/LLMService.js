@@ -2,6 +2,7 @@ import ky from 'ky';
 import { getQraSystemPrompt } from '../prompts/qraPrompts.js';
 import { getSecSystemPrompt } from '../prompts/secPrompts.js';
 import { getRegulationPrompt } from '../prompts/regulationPrompts.js';
+import { getMacroAlertSystemPrompt, getMacroAlertUserPrompt } from '../prompts/alertPrompts.js';
 import { GoogleGenAI } from '@google/genai';
 import { createPacingManager } from '../managers/PacingManager.js';
 
@@ -110,6 +111,13 @@ export class LLMService {
         const systemPrompt = getSecSystemPrompt(metricName, ticker, archetype);
         const userPrompt = `Hier sind die Textausschnitte:\n\n${snippet}`;
         return await this._queryGroq(systemPrompt, userPrompt, true, 1024, 45000);
+    }
+
+    async analyzeMacroEvent(event) {
+        const systemPrompt = getMacroAlertSystemPrompt();
+        const userPrompt = getMacroAlertUserPrompt(event);
+        // jsonMode = false, da wir reinen Text (Plaintext) für Push-Nachrichten wollen
+        return await this._queryGroq(systemPrompt, userPrompt, false, 300, 10000);
     }
 
     async analyzeRegulationDocument(text, title) {

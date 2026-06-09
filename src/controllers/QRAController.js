@@ -68,7 +68,20 @@ export class QRAController extends BaseController {
                 return;
             }
 
+            const { EventBus } = await import('../core/EventBus.js').catch((err) => {
+                console.error('Konnte EventBus nicht importieren:', err.message);
+                return { EventBus: null };
+            });
+
             console.log(`Daten für Quartal ${estimate.targetQuarter} gefunden. Führe Upsert durch...`);
+
+            // Prüfen, ob wir die Daten schon hatten oder ob sich was geändert hat
+            let oldEstimate = null;
+            try {
+                oldEstimate = await this.qraRepository.getLatestEstimateForQuarter(estimate.targetQuarter);
+            } catch (err) {
+                console.error('Konnte alten QRA-Status nicht prüfen:', err.message);
+            }
 
             await this.qraRepository.upsertQraEstimate(
                 estimate.targetQuarter,
@@ -76,6 +89,18 @@ export class QRAController extends BaseController {
                 estimate.estimatedNetBorrowing,
                 estimate.estimatedTgaBalance
             );
+
+            // Event feuern, wenn es komplett neu ist oder sich die TGA-Balance geändert hat
+            if (EventBus) {
+                if (!oldEstimate) {
+                    EventBus.emit('QRAController', 'qra_estimate_added', estimate);
+                } else if (Number(oldEstimate.estimated_tga_balance) !== estimate.estimatedTgaBalance) {
+                    EventBus.emit('QRAController', 'qra_estimate_updated', { 
+                        old_tga: oldEstimate.estimated_tga_balance, 
+                        new_estimate: estimate 
+                    });
+                }
+            }
 
             const tgaBillion = estimate.estimatedTgaBalance ? (estimate.estimatedTgaBalance / 1_000_000_000).toFixed(0) : 'N/A';
             console.log(`✅ QRA Sync erfolgreich! Target Quarter: ${estimate.targetQuarter} | TGA Ziel: $${tgaBillion} Mrd.`);

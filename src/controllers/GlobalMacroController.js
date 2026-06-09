@@ -25,6 +25,8 @@ export class GlobalMacroController extends BaseController {
             let cbSuccess = 0;
             let cbSkipped = 0;
 
+            const { EventBus } = await import('../core/EventBus.js').catch(() => ({ EventBus: null }));
+
             await this.processItemsSafely(definitions, (d) => d.series_id, async (def) => {
                 const latestDate = await this.globalRepo.getLatestGlobalDate(def.id);
                 const startDate = latestDate ? latestDate : '2024-01-01';
@@ -36,6 +38,17 @@ export class GlobalMacroController extends BaseController {
                     if (obs.value !== '.') {
                         const numericValue = parseFloat(obs.value);
                         await this.globalRepo.upsertGlobalData(def.id, obs.date, numericValue);
+
+                        // Event feuern, wenn wir einen nagelneuen Bilanz-Datensatz bekommen
+                        if (latestDate && new Date(obs.date) > new Date(latestDate) && EventBus) {
+                            EventBus.emit('GlobalMacroController', 'central_bank_update', {
+                                series_id: def.series_id,
+                                region: def.region,
+                                date: obs.date,
+                                balance: numericValue
+                            });
+                        }
+
                         cbSuccess++;
                     } else {
                         cbSkipped++;
