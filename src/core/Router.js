@@ -61,10 +61,10 @@ export class Router {
     // ==========================================
 
     async runCboeSync() {
-        const { createTickerRepository } = await import('./src/repositories/TickerRepository.js');
-        const { CboeRepository } = await import('./src/repositories/CboeRepository.js');
-        const { CboeService } = await import('./src/services/CboeService.js');
-        const { CboeController } = await import('./src/controllers/CboeController.js');
+        const { createTickerRepository } = await import('../repositories/TickerRepository.js');
+        const { CboeRepository } = await import('../repositories/CboeRepository.js');
+        const { CboeService } = await import('../services/CboeService.js');
+        const { CboeController } = await import('../controllers/CboeController.js');
         const tickerRepo = createTickerRepository(this.db);
                 const cboeRepo = new CboeRepository(this.db);
                 const cboeService = new CboeService();
@@ -78,11 +78,11 @@ export class Router {
     async runDailySync() {
         
         // Zwingend dynamischer Import NACHDEM dotenv geladen ist
-                const { createTickerRepository } = await import('./src/repositories/TickerRepository.js');
-                const { CandleRepository } = await import('./src/repositories/CandleRepository.js');
-                const { PolygonIoService } = await import('./src/services/PolygonIoService.js');
-                const { MarketStatusService } = await import('./src/services/MarketStatusService.js');
-                const { DailyController } = await import('./src/controllers/DailyController.js');
+                const { createTickerRepository } = await import('../repositories/TickerRepository.js');
+                const { CandleRepository } = await import('../repositories/CandleRepository.js');
+                const { PolygonIoService } = await import('../services/PolygonIoService.js');
+                const { MarketStatusService } = await import('../services/MarketStatusService.js');
+                const { DailyController } = await import('../controllers/DailyController.js');
         
                 const marketService = new MarketStatusService();
                 const isMarketOpen = await marketService.isMarketOpen();
@@ -101,9 +101,9 @@ export class Router {
 
     async runEventsBackfill() {
         const { default: ky } = await import('ky');
-        const { createTickerRepository } = await import('./src/repositories/TickerRepository.js');
-                const { EventRepository } = await import('./src/repositories/EventRepository.js');
-                const { EventsController } = await import('./src/controllers/EventsController.js');
+        const { createTickerRepository } = await import('../repositories/TickerRepository.js');
+                const { EventRepository } = await import('../repositories/EventRepository.js');
+                const { EventsController } = await import('../controllers/EventsController.js');
         
                 const tickerRepo = createTickerRepository(this.db);
                 const eventRepo = new EventRepository(this.db);
@@ -124,10 +124,10 @@ export class Router {
 
     async runEventsSync() {
         
-        const { createTickerRepository } = await import('./src/repositories/TickerRepository.js');
-                const { EventRepository } = await import('./src/repositories/EventRepository.js');
-                const { FinnhubService } = await import('./src/services/FinnhubService.js');
-                const { EventsController } = await import('./src/controllers/EventsController.js');
+        const { createTickerRepository } = await import('../repositories/TickerRepository.js');
+                const { EventRepository } = await import('../repositories/EventRepository.js');
+                const { FinnhubService } = await import('../services/FinnhubService.js');
+                const { EventsController } = await import('../controllers/EventsController.js');
         
                 const tickerRepo = createTickerRepository(this.db);
                 const eventRepo = new EventRepository(this.db);
@@ -141,10 +141,10 @@ export class Router {
     }
 
     async runFinraBackfill() {
-        const { createTickerRepository } = await import('./src/repositories/TickerRepository.js');
-        const { FinraRepository } = await import('./src/repositories/FinraRepository.js');
-        const { FinraService } = await import('./src/services/FinraService.js');
-        const { FinraController } = await import('./src/controllers/FinraController.js');
+        const { createTickerRepository } = await import('../repositories/TickerRepository.js');
+        const { FinraRepository } = await import('../repositories/FinraRepository.js');
+        const { FinraService } = await import('../services/FinraService.js');
+        const { FinraController } = await import('../controllers/FinraController.js');
         const tickerRepo = createTickerRepository(this.db);
                 const finraRepo = new FinraRepository(this.db);
                 const finraService = new FinraService();
@@ -156,10 +156,10 @@ export class Router {
     }
 
     async runFinraSync() {
-        const { createTickerRepository } = await import('./src/repositories/TickerRepository.js');
-        const { FinraRepository } = await import('./src/repositories/FinraRepository.js');
-        const { FinraService } = await import('./src/services/FinraService.js');
-        const { FinraController } = await import('./src/controllers/FinraController.js');
+        const { createTickerRepository } = await import('../repositories/TickerRepository.js');
+        const { FinraRepository } = await import('../repositories/FinraRepository.js');
+        const { FinraService } = await import('../services/FinraService.js');
+        const { FinraController } = await import('../controllers/FinraController.js');
         // Dependencies initialisieren
                 const tickerRepo = createTickerRepository(this.db);
                 const finraRepo = new FinraRepository(this.db);
@@ -173,9 +173,9 @@ export class Router {
     }
 
     async runFiscalBackfill() {
-        const { createFiscalService } = await import('./src/services/FiscalService.js');
-        const { createFiscalRepository } = await import('./src/repositories/FiscalRepository.js');
-        const { FiscalController } = await import('./src/controllers/FiscalController.js');
+        const { createFiscalService } = await import('../services/FiscalService.js');
+        const { createFiscalRepository } = await import('../repositories/FiscalRepository.js');
+        const { FiscalController } = await import('../controllers/FiscalController.js');
         const fiscalService = createFiscalService();
                 const fiscalRepo = createFiscalRepository(this.db);
                 
@@ -186,9 +186,9 @@ export class Router {
     }
 
     async runFiscalSync() {
-        const { createFiscalService } = await import('./src/services/FiscalService.js');
-        const { createFiscalRepository } = await import('./src/repositories/FiscalRepository.js');
-        const { FiscalController } = await import('./src/controllers/FiscalController.js');
+        const { createFiscalService } = await import('../services/FiscalService.js');
+        const { createFiscalRepository } = await import('../repositories/FiscalRepository.js');
+        const { FiscalController } = await import('../controllers/FiscalController.js');
         const fiscalService = createFiscalService();
                 const fiscalRepo = createFiscalRepository(this.db);
                 
@@ -199,9 +199,9 @@ export class Router {
     }
 
     async runFredBackfill() {
-        const { createFredService } = await import('./src/services/FredService.js');
-        const { createFredRepository } = await import('./src/repositories/FredRepository.js');
-        const { FredController } = await import('./src/controllers/FredController.js');
+        const { createFredService } = await import('../services/FredService.js');
+        const { createFredRepository } = await import('../repositories/FredRepository.js');
+        const { FredController } = await import('../controllers/FredController.js');
         const fredService = createFredService();
                 const fredRepository = createFredRepository(this.db);
                 
@@ -213,9 +213,9 @@ export class Router {
     }
 
     async runFredSync() {
-        const { createFredService } = await import('./src/services/FredService.js');
-        const { createFredRepository } = await import('./src/repositories/FredRepository.js');
-        const { FredController } = await import('./src/controllers/FredController.js');
+        const { createFredService } = await import('../services/FredService.js');
+        const { createFredRepository } = await import('../repositories/FredRepository.js');
+        const { FredController } = await import('../controllers/FredController.js');
         const fredService = createFredService();
                 const fredRepository = createFredRepository(this.db);
                 
@@ -227,9 +227,9 @@ export class Router {
     }
 
     async runGlobalBackfill() {
-        const { createGlobalMacroService } = await import('./src/services/GlobalMacroService.js');
-        const { createGlobalMacroRepository } = await import('./src/repositories/GlobalMacroRepository.js');
-        const { GlobalMacroController } = await import('./src/controllers/GlobalMacroController.js');
+        const { createGlobalMacroService } = await import('../services/GlobalMacroService.js');
+        const { createGlobalMacroRepository } = await import('../repositories/GlobalMacroRepository.js');
+        const { GlobalMacroController } = await import('../controllers/GlobalMacroController.js');
         const globalService = createGlobalMacroService();
                 const globalRepo = createGlobalMacroRepository(this.db);
                 
@@ -240,9 +240,9 @@ export class Router {
     }
 
     async runGlobalSync() {
-        const { createGlobalMacroService } = await import('./src/services/GlobalMacroService.js');
-        const { createGlobalMacroRepository } = await import('./src/repositories/GlobalMacroRepository.js');
-        const { GlobalMacroController } = await import('./src/controllers/GlobalMacroController.js');
+        const { createGlobalMacroService } = await import('../services/GlobalMacroService.js');
+        const { createGlobalMacroRepository } = await import('../repositories/GlobalMacroRepository.js');
+        const { GlobalMacroController } = await import('../controllers/GlobalMacroController.js');
         const globalService = createGlobalMacroService();
                 const globalRepo = createGlobalMacroRepository(this.db);
                 
@@ -253,9 +253,9 @@ export class Router {
     }
 
     async runLaborMarketBackfill() {
-        const { createLaborMarketService } = await import('./src/services/LaborMarketService.js');
-        const { createLaborMarketRepository } = await import('./src/repositories/LaborMarketRepository.js');
-        const { LaborMarketController } = await import('./src/controllers/LaborMarketController.js');
+        const { createLaborMarketService } = await import('../services/LaborMarketService.js');
+        const { createLaborMarketRepository } = await import('../repositories/LaborMarketRepository.js');
+        const { LaborMarketController } = await import('../controllers/LaborMarketController.js');
         const service = createLaborMarketService();
                 const repo = createLaborMarketRepository(this.db);
                 
@@ -266,9 +266,9 @@ export class Router {
     }
 
     async runLaborMarketSync() {
-        const { createLaborMarketService } = await import('./src/services/LaborMarketService.js');
-        const { createLaborMarketRepository } = await import('./src/repositories/LaborMarketRepository.js');
-        const { LaborMarketController } = await import('./src/controllers/LaborMarketController.js');
+        const { createLaborMarketService } = await import('../services/LaborMarketService.js');
+        const { createLaborMarketRepository } = await import('../repositories/LaborMarketRepository.js');
+        const { LaborMarketController } = await import('../controllers/LaborMarketController.js');
         const service = createLaborMarketService();
                 const repo = createLaborMarketRepository(this.db);
                 
@@ -282,11 +282,11 @@ export class Router {
         
         // Zwingend dynamischer Import NACHDEM dotenv geladen ist
                 // FIX: Importiere die Factory-Funktion statt der Klasse
-                const { createTickerRepository } = await import('./src/repositories/TickerRepository.js');
-                const { CandleRepository } = await import('./src/repositories/CandleRepository.js');
-                const { PolygonIoService } = await import('./src/services/PolygonIoService.js');
-                const { MarketStatusService } = await import('./src/services/MarketStatusService.js');
-                const { M5Controller } = await import('./src/controllers/M5Controller.js');
+                const { createTickerRepository } = await import('../repositories/TickerRepository.js');
+                const { CandleRepository } = await import('../repositories/CandleRepository.js');
+                const { PolygonIoService } = await import('../services/PolygonIoService.js');
+                const { MarketStatusService } = await import('../services/MarketStatusService.js');
+                const { M5Controller } = await import('../controllers/M5Controller.js');
         
                 const marketService = new MarketStatusService();
                 const isMarketOpen = await marketService.isMarketOpen();
@@ -304,10 +304,10 @@ export class Router {
     }
 
     async runOptionsBackfill() {
-        const { PolygonIoService } = await import('./src/services/PolygonIoService.js');
-        const { OptionRepository } = await import('./src/repositories/OptionRepository.js');
-        const { createTickerRepository } = await import('./src/repositories/TickerRepository.js');
-        const { OptionsController } = await import('./src/controllers/OptionsController.js');
+        const { PolygonIoService } = await import('../services/PolygonIoService.js');
+        const { OptionRepository } = await import('../repositories/OptionRepository.js');
+        const { createTickerRepository } = await import('../repositories/TickerRepository.js');
+        const { OptionsController } = await import('../controllers/OptionsController.js');
         const polygonService = new PolygonIoService();
                 const optionRepo = new OptionRepository(this.db);
                 const tickerRepo = createTickerRepository(this.db);
@@ -321,10 +321,10 @@ export class Router {
     }
 
     async runOptionsHistoric() {
-        const { PolygonIoService } = await import('./src/services/PolygonIoService.js');
-        const { OptionRepository } = await import('./src/repositories/OptionRepository.js');
-        const { createTickerRepository } = await import('./src/repositories/TickerRepository.js');
-        const { OptionsController } = await import('./src/controllers/OptionsController.js');
+        const { PolygonIoService } = await import('../services/PolygonIoService.js');
+        const { OptionRepository } = await import('../repositories/OptionRepository.js');
+        const { createTickerRepository } = await import('../repositories/TickerRepository.js');
+        const { OptionsController } = await import('../controllers/OptionsController.js');
         const polygonService = new PolygonIoService();
                 const optionRepo = new OptionRepository(this.db);
                 const tickerRepo = createTickerRepository(this.db);
@@ -338,10 +338,10 @@ export class Router {
     }
 
     async runOptionsIntra() {
-        const { AlphaVantageOptionService } = await import('./src/services/AlphaVantageOptionService.js');
-        const { OptionsController } = await import('./src/controllers/OptionsController.js');
-        const { createTickerRepository } = await import('./src/repositories/TickerRepository.js');
-                const { OptionRepository } = await import('./src/repositories/OptionRepository.js');
+        const { AlphaVantageOptionService } = await import('../services/AlphaVantageOptionService.js');
+        const { OptionsController } = await import('../controllers/OptionsController.js');
+        const { createTickerRepository } = await import('../repositories/TickerRepository.js');
+                const { OptionRepository } = await import('../repositories/OptionRepository.js');
         
                 // Dependencies initialisieren
                 const tickerRepo = createTickerRepository(this.db);
@@ -354,9 +354,9 @@ export class Router {
     }
 
     async runQraBackfill() {
-        const { createQRARepository } = await import('./src/repositories/QRARepository.js');
-        const { createLLMService } = await import('./src/services/LLMService.js');
-        const { QRAController } = await import('./src/controllers/QRAController.js');
+        const { createQRARepository } = await import('../repositories/QRARepository.js');
+        const { createLLMService } = await import('../services/LLMService.js');
+        const { QRAController } = await import('../controllers/QRAController.js');
         // Dependencies initialisieren
                 const qraRepository = createQRARepository(this.db);
                 const llmService = createLLMService();
@@ -369,9 +369,9 @@ export class Router {
     }
 
     async runQraSync() {
-        const { createQRAService } = await import('./src/services/QRAService.js');
-        const { createQRARepository } = await import('./src/repositories/QRARepository.js');
-        const { QRAController } = await import('./src/controllers/QRAController.js');
+        const { createQRAService } = await import('../services/QRAService.js');
+        const { createQRARepository } = await import('../repositories/QRARepository.js');
+        const { QRAController } = await import('../controllers/QRAController.js');
         // Dependencies initialisieren
                 const qraService = createQRAService();
                 const qraRepository = createQRARepository(this.db);
@@ -384,9 +384,9 @@ export class Router {
     }
 
     async runRegulationSync() {
-        const { createRegulationService } = await import('./src/services/RegulationService.js');
-        const { createRegulationRepository } = await import('./src/repositories/RegulationRepository.js');
-        const { RegulationController } = await import('./src/controllers/RegulationController.js');
+        const { createRegulationService } = await import('../services/RegulationService.js');
+        const { createRegulationRepository } = await import('../repositories/RegulationRepository.js');
+        const { RegulationController } = await import('../controllers/RegulationController.js');
         const { GoogleGenAI } = await import('@google/genai');
         const regulationService = createRegulationService();
                 const regulationRepository = createRegulationRepository(this.db);
@@ -401,9 +401,9 @@ export class Router {
     }
 
     async runSecCiks() {
-        const { createSecService } = await import('./src/services/SecService.js');
-        const { createSecRepository } = await import('./src/repositories/SecRepository.js');
-        const { SecController } = await import('./src/controllers/SecController.js');
+        const { createSecService } = await import('../services/SecService.js');
+        const { createSecRepository } = await import('../repositories/SecRepository.js');
+        const { SecController } = await import('../controllers/SecController.js');
         const secService = createSecService();
                 const secRepository = createSecRepository(this.db);
                 const controller = new SecController(secRepository, secService);
@@ -414,9 +414,9 @@ export class Router {
     }
 
     async runSecFilings() {
-        const { createSecService } = await import('./src/services/SecService.js');
-        const { createSecRepository } = await import('./src/repositories/SecRepository.js');
-        const { SecController } = await import('./src/controllers/SecController.js');
+        const { createSecService } = await import('../services/SecService.js');
+        const { createSecRepository } = await import('../repositories/SecRepository.js');
+        const { SecController } = await import('../controllers/SecController.js');
         const secService = createSecService();
                 const secRepository = createSecRepository(this.db);
                 const controller = new SecController(secRepository, secService);
@@ -427,10 +427,10 @@ export class Router {
     }
 
     async runSectorRotationSync() {
-        const { SectorRotationController } = await import('./src/controllers/SectorRotationController.js');
-        const { createTickerRepository } = await import('./src/repositories/TickerRepository.js');
-                const { CandleRepository } = await import('./src/repositories/CandleRepository.js');
-                const { SectorRotationRepository } = await import('./src/repositories/SectorRotationRepository.js');
+        const { SectorRotationController } = await import('../controllers/SectorRotationController.js');
+        const { createTickerRepository } = await import('../repositories/TickerRepository.js');
+                const { CandleRepository } = await import('../repositories/CandleRepository.js');
+                const { SectorRotationRepository } = await import('../repositories/SectorRotationRepository.js');
         
                 // Repositories initialisieren
                 const tickerRepo = createTickerRepository(this.db);
@@ -445,10 +445,10 @@ export class Router {
     }
 
     async runSentimentNewsBackfill() {
-        const { createSentimentNewsService } = await import('./src/services/SentimentNewsService.js');
-        const { createSentimentNewsRepository } = await import('./src/repositories/SentimentNewsRepository.js');
-        const { createTickerRepository } = await import('./src/repositories/TickerRepository.js');
-        const { SentimentNewsController } = await import('./src/controllers/SentimentNewsController.js');
+        const { createSentimentNewsService } = await import('../services/SentimentNewsService.js');
+        const { createSentimentNewsRepository } = await import('../repositories/SentimentNewsRepository.js');
+        const { createTickerRepository } = await import('../repositories/TickerRepository.js');
+        const { SentimentNewsController } = await import('../controllers/SentimentNewsController.js');
         const sentimentNewsService = createSentimentNewsService();
                 const sentimentNewsRepository = createSentimentNewsRepository(this.db);
                 const tickerRepository = createTickerRepository(this.db);
@@ -460,10 +460,10 @@ export class Router {
     }
 
     async runSentimentNewsSync() {
-        const { createSentimentNewsService } = await import('./src/services/SentimentNewsService.js');
-        const { createSentimentNewsRepository } = await import('./src/repositories/SentimentNewsRepository.js');
-        const { createTickerRepository } = await import('./src/repositories/TickerRepository.js');
-        const { SentimentNewsController } = await import('./src/controllers/SentimentNewsController.js');
+        const { createSentimentNewsService } = await import('../services/SentimentNewsService.js');
+        const { createSentimentNewsRepository } = await import('../repositories/SentimentNewsRepository.js');
+        const { createTickerRepository } = await import('../repositories/TickerRepository.js');
+        const { SentimentNewsController } = await import('../controllers/SentimentNewsController.js');
         const sentimentNewsService = createSentimentNewsService();
                 const sentimentNewsRepository = createSentimentNewsRepository(this.db);
                 const tickerRepository = createTickerRepository(this.db);
