@@ -7,7 +7,6 @@ vi.mock('ky');
 vi.mock('yahoo-finance2', () => {
     return {
         default: {
-            suppressNotices: vi.fn(),
             fundamentalsTimeSeries: vi.fn()
         }
     };

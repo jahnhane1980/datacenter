@@ -5,7 +5,6 @@ import yahooFinance from 'yahoo-finance2';
 vi.mock('yahoo-finance2', () => {
     return {
         default: {
-            suppressNotices: vi.fn(),
             quoteSummary: vi.fn()
         }
     };

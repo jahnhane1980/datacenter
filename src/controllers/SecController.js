@@ -4,8 +4,6 @@ import ky from 'ky';
 import yahooFinance from 'yahoo-finance2';
 import { BaseController } from '../core/BaseController.js';
 
-yahooFinance.suppressNotices(['yahooSurvey']);
-
 export class SecController extends BaseController {
     /**
      * @param {Object} secRepo 

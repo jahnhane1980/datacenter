@@ -2,9 +2,6 @@ import yahooFinance from 'yahoo-finance2';
 
 export function createYahooService() {
 
-    // Optionale Optimierung: Wir blenden nervige interne Logs der Library aus
-    yahooFinance.suppressNotices(['yahooSurvey']);
-
     /**
      * Holt die aktuellsten Quartalszahlen (Income Statement, Cash Flow, Balance Sheet)
      * von Yahoo Finance für einen Ticker.
