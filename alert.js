@@ -1,46 +1,15 @@
 import 'dotenv/config';
 import fs from 'fs';
 import path from 'path';
-import { NotificationService } from './src/services/NotificationService.js';
-import { LLMService } from './src/services/LLMService.js';
-import { createPacingManager } from './src/managers/PacingManager.js';
-
-/**
- * ============================================================================
- * 🚨 ALERT & NOTIFICATION ORCHESTRATOR (File-based Event Queue)
- * ============================================================================
- * 
- * WARUM DIESE DATEI?
- * -----------------
- * Diese Datei läuft streng getrennt von `sync.js`. Das garantiert, dass unser 
- * Daten-Sync (die wichtigste Aufgabe des Systems) niemals abstürzt, nur weil 
- * eine E-Mail nicht rausgeht oder ein LLM-Aufruf (Groq) einen Timeout hat.
- * 
- * WIE FUNKTIONIERT DER LOKALE EVENT BUS?
- * --------------------------------------
- * Wir verzichten komplett auf neue Datenbank-Tabellen. Da dieses Script und 
- * `sync.js` im selben GitHub-Action-Lauf ausgeführt werden, teilen sie sich 
- * das lokale Dateisystem.
- * 
- * DER WORKFLOW:
- * 1. SYNC: Ein Controller (z.B. FiscalController) bemerkt eine wichtige Änderung
- *    (z.B. Auktionsdaten wurden ausgefüllt). Er ruft `EventBus.emit(...)` auf.
- *    Dadurch wird das Event in `tmp_event/sys_events.json` geschrieben.
- * 2. ALERTING: Diese Datei (`alert.js`) wird nach dem Sync aufgerufen. Sie liest 
- *    die `sys_events.json` Datei aus.
- * 3. VERARBEITUNG: Die Events werden vom Groq LLM analysiert, um aus rohen JSON-Zahlen
- *    verständliche Makro-Einschätzungen für Investoren zu generieren.
- * 4. CLEANUP: Nach erfolgreicher Verarbeitung löscht `alert.js` die Datei 
- *    `sys_events.json` rückstandslos.
- * ============================================================================
- */
+import { supabaseClient } from './src/core/SupabaseClient.js';
+import { ActionRouter } from './src/core/ActionRouter.js';
 
 const EVENT_FILE = path.join(process.cwd(), 'tmp_event', 'sys_events.json');
 
 async function main() {
     try {
         console.log(`\n======================================================`);
-        console.log(`🧠 Starte Alerting & Analysis Orchestrator`);
+        console.log(`🧠 Starte Alerting & Analysis Orchestrator (ActionRouter)`);
         console.log(`======================================================\n`);
 
         if (!fs.existsSync(EVENT_FILE)) {
@@ -67,22 +36,11 @@ async function main() {
 
         console.log(`Verarbeite ${events.length} Event(s)...`);
 
-        const notificationService = new NotificationService();
-        const llmService = new LLMService(createPacingManager());
+        const router = new ActionRouter(supabaseClient);
 
         for (const event of events) {
             console.log(`\n-> Behandle Event: [${event.source}] ${event.type}`);
-            
-            // 1. LLM Analyse anfordern
-            console.log(`   Generiere KI-Zusammenfassung via Groq...`);
-            const aiAnalysis = await llmService.analyzeMacroEvent(event);
-            
-            // 2. Fallback falls Groq fehlschlägt
-            const messageBody = aiAnalysis || `[KI-Analyse fehlgeschlagen]\n\nRohdaten:\n${JSON.stringify(event.details, null, 2)}`;
-            const subject = `FinanceOS: ${event.type}`;
-
-            // 3. Benachrichtigung versenden
-            await notificationService.send(subject, messageBody);
+            await router.execute(event);
         }
 
         // Cleanup: Datei löschen, da alles verarbeitet wurde

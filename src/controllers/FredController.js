@@ -19,8 +19,10 @@ export class FredController extends BaseController {
      * Kern-Logik für den FRED-Datenabruf und Upsert
      * @param {string} startDate - Datum im Format 'YYYY-MM-DD'
      */
-    async _executeSync(startDate) {
+    async _executeSync(startDate, latestDate = null) {
         console.log(`Hole Daten ab: ${startDate}...`);
+
+        const { EventBus } = await import('../core/EventBus.js').catch(() => ({ EventBus: null }));
 
         const tgaData = await this.fredService.fetchObservations(FRED_SERIES.TGA_BALANCE, startDate);
         await this.pacingManager.sleepMs(1000);
@@ -143,6 +145,16 @@ export class FredController extends BaseController {
                     await this.fredRepo.upsertMacroIndicatorValues(newIndicatorValues);
                 }
 
+                if (EventBus && latestDate && new Date(date) > new Date(latestDate)) {
+                    EventBus.emit('FredController', 'liquidity_update', {
+                        date: date,
+                        tga: values.tga_balance,
+                        rrp: values.rrp_balance,
+                        fed: values.fed_balance,
+                        sofr: values.sofr_rate
+                    });
+                }
+
                 successCount++;
             } catch (err) {
                 console.error(`Fehler beim Upsert für das Datum ${date}:`, err.message);
@@ -173,7 +185,7 @@ export class FredController extends BaseController {
                 console.log(`Kein Eintrag gefunden. Fallback auf die letzten 14 Tage (ab ${startDate})...`);
             }
 
-            await this._executeSync(startDate);
+            await this._executeSync(startDate, latestDate);
         });
     }
 

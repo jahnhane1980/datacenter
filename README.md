@@ -43,3 +43,7 @@ supabase stop
 
 Archivieren von m5 
 node sync.js --task m5 --mode archive
+
+
+  │ "Hi! Wir arbeiten an meinem datacenter-Projekt. Bitte lies dir als erstes die Datei  C:\GitHub\datacenter\FINANCEOS_TODO.md     
+  │ durch, damit du wieder zu 100% im Kontext bist, und lass uns dann genau dort weitermachen." 
