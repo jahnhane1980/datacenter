@@ -38,7 +38,8 @@ describe('Router', () => {
             runIntraSync: vi.fn().mockResolvedValue(),
             runRegulationCheck: vi.fn().mockResolvedValue(),
             runCikSync: vi.fn().mockResolvedValue(),
-            runMasterSync: vi.fn().mockResolvedValue()
+            runMasterSync: vi.fn().mockResolvedValue(),
+            runTailBackfill: vi.fn().mockResolvedValue()
         };
         
         // Den Controller-Factory-Aufruf mocken

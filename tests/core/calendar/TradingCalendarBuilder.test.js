@@ -2,8 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TradingCalendarBuilder } from '../../../src/core/calendar/TradingCalendarBuilder.js';
 import fs from 'fs';
 
-vi.mock('fs');
-
 describe('TradingCalendarBuilder', () => {
     let builder;
     let mockSupabase;
@@ -15,6 +13,9 @@ describe('TradingCalendarBuilder', () => {
         };
         builder = new TradingCalendarBuilder(mockSupabase);
         vi.clearAllMocks();
+        
+        vi.spyOn(fs, 'existsSync').mockReturnValue(false);
+        vi.spyOn(fs, 'readFileSync').mockReturnValue('{}');
     });
 
     it('should generate a valid calendar and push chunks to database', async () => {
@@ -41,14 +42,19 @@ describe('TradingCalendarBuilder', () => {
     });
 
     it('should apply exceptions if market_exceptions.json exists', async () => {
-        fs.existsSync.mockReturnValue(true);
-        fs.readFileSync.mockReturnValue(JSON.stringify({
-            "2023-01-04": {
-                "is_trading_day": false,
-                "holiday_name": "Test Holiday",
-                "early_close": true
+        fs.existsSync.mockImplementation((filePath) => filePath.includes('market_exceptions.json'));
+        fs.readFileSync.mockImplementation((filePath) => {
+            if (filePath.includes('market_exceptions.json')) {
+                return JSON.stringify({
+                    "2023-01-04": {
+                        "is_trading_day": false,
+                        "holiday_name": "Test Holiday",
+                        "early_close": true
+                    }
+                });
             }
-        }));
+            return '{}';
+        });
 
         await builder.buildCalendar(2023, 2023);
 

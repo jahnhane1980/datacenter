@@ -104,9 +104,62 @@ export function createFiscalRepository(supabaseClient) {
         return data || [];
     };
 
+    /**
+     * Holt die X letzten Auktionen für eine bestimmte Laufzeit (z.B. "10-Year") für Vergleiche.
+     */
+    const getHistoricalAuctionStats = async (securityTerm, limit = 6) => {
+        const { data, error } = await supabaseClient
+            .from(DB_TABLE)
+            .select('auction_date, bid_to_cover_ratio, high_yield, primary_dealer_accepted, direct_bidder_accepted, indirect_bidder_accepted, total_accepted')
+            .eq('security_term', securityTerm)
+            .order('auction_date', { ascending: false })
+            .limit(limit);
+
+        if (error) {
+            throw new Error(`Fehler beim Abrufen historischer Auktionsdaten für ${securityTerm}: ${error.message}`);
+        }
+        return data || [];
+    };
+
+    /**
+     * Holt alle Auktionen, für die noch kein Proxy-Tail berechnet wurde.
+     */
+    const getAuctionsWithoutTail = async () => {
+        const { data, error } = await supabaseClient
+            .from(DB_TABLE)
+            .select('*')
+            .is('proxy_tail', null)
+            .not('high_yield', 'is', null);
+
+        if (error) {
+            throw new Error(`Fehler beim Abrufen von Auktionen ohne Tail: ${error.message}`);
+        }
+        return data || [];
+    };
+
+    /**
+     * Aktualisiert den Tail-Wert einer bestehenden Auktion.
+     */
+    const updateAuctionTail = async (cusip, secondaryYield, proxyTail) => {
+        const { error } = await supabaseClient
+            .from(DB_TABLE)
+            .update({
+                secondary_market_yield: secondaryYield,
+                proxy_tail: proxyTail
+            })
+            .eq('cusip', cusip);
+
+        if (error) {
+            throw new Error(`Fehler beim Update des Tails für CUSIP ${cusip}: ${error.message}`);
+        }
+    };
+
     return {
         upsertAuctionData,
         getLatestAuctionDate,
-        getAuctionsByCusips
+        getAuctionsByCusips,
+        getHistoricalAuctionStats,
+        getAuctionsWithoutTail,
+        updateAuctionTail
     };
 }

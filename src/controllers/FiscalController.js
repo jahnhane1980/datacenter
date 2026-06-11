@@ -1,5 +1,6 @@
 import { TREASURY_TYPES } from '../services/FiscalService.js';
 import { BaseController } from '../core/BaseController.js';
+import { createYahooService, TREASURY_YIELD_MAPPING } from '../services/YahooService.js';
 
 export class FiscalController extends BaseController {
     /**
@@ -15,6 +16,7 @@ export class FiscalController extends BaseController {
     async _processAuctions(allAuctions) {
         let successCount = 0;
         let errorCount = 0;
+        const yahooService = createYahooService();
 
         // 1. Identifiziere alle Auktionen, die "gefüllt" sind (total_accepted vorhanden)
         const filledAuctions = allAuctions.filter(a => a.total_accepted);
@@ -74,16 +76,35 @@ export class FiscalController extends BaseController {
                     const oldAuction = dbAuctionsMap.get(auction.cusip);
                     const wasEmptyBefore = !oldAuction || oldAuction.total_accepted === null;
 
-                    if (wasEmptyBefore && EventBus) {
-                        EventBus.emit('FiscalController', 'treasury_auction_filled', {
-                            cusip: auction.cusip,
-                            security_type: auction.security_type,
-                            security_term: auction.security_term,
-                            auction_date: auction.auction_date,
-                            total_accepted: totalAccepted,
-                            bid_to_cover_ratio: bidToCover,
-                            high_yield: highYield
-                        });
+                    if (wasEmptyBefore) {
+                        let secondaryYield = null;
+                        let proxyTail = null;
+
+                        const ticker = TREASURY_YIELD_MAPPING[auction.security_term];
+                        if (ticker && highYield !== null) {
+                            secondaryYield = await yahooService.fetchYieldForDate(ticker, auction.auction_date);
+                            if (secondaryYield !== null) {
+                                proxyTail = highYield - secondaryYield;
+                                await this.fiscalRepo.updateAuctionTail(auction.cusip, secondaryYield, proxyTail);
+                            }
+                        }
+
+                        if (EventBus) {
+                            EventBus.emit('FiscalController', 'treasury_auction_filled', {
+                                cusip: auction.cusip,
+                                security_type: auction.security_type,
+                                security_term: auction.security_term,
+                                auction_date: auction.auction_date,
+                                total_accepted: totalAccepted,
+                                bid_to_cover_ratio: bidToCover,
+                                high_yield: highYield,
+                                primary_dealer_accepted: primaryDealerAccepted,
+                                direct_bidder_accepted: directBidderAccepted,
+                                indirect_bidder_accepted: indirectBidderAccepted,
+                                secondary_market_yield: secondaryYield,
+                                proxy_tail: proxyTail
+                            });
+                        }
                     }
                 }
 
@@ -139,6 +160,55 @@ export class FiscalController extends BaseController {
 
             console.log(`Erfolgreiche Inserts/Updates: ${successCount}`);
             console.log(`Fehlgeschlagene Inserts: ${errorCount}`);
+        });
+    }
+
+    async runTailBackfill() {
+        await this.executeJob('Fiscal Tail Backfill', async () => {
+            console.log('Lade Auktionen ohne berechneten Tail...');
+            const auctions = await this.fiscalRepo.getAuctionsWithoutTail();
+            
+            if (auctions.length === 0) {
+                console.log('Keine Auktionen für Tail Backfill gefunden.');
+                return;
+            }
+
+            console.log(`${auctions.length} Auktionen gefunden. Starte Abruf von Yahoo Finance...`);
+            
+            const yahooService = createYahooService();
+            let successCount = 0;
+            let skipCount = 0;
+            let errorCount = 0;
+
+            await this.processItemsSafely(auctions, (a) => a.cusip, async (auction) => {
+                const ticker = TREASURY_YIELD_MAPPING[auction.security_term];
+                if (!ticker) {
+                    // Ignoriere nicht unterstützte Laufzeiten (z.B. 2-Year, 4-Week)
+                    skipCount++;
+                    return;
+                }
+
+                try {
+                    const secondaryYield = await yahooService.fetchYieldForDate(ticker, auction.auction_date);
+                    
+                    if (secondaryYield !== null) {
+                        const highYield = parseFloat(auction.high_yield);
+                        // Proxy Tail: Differenz zwischen High Yield bei Auktion und Sekundärmarktrendite
+                        const proxyTail = highYield - secondaryYield;
+                        
+                        await this.fiscalRepo.updateAuctionTail(auction.cusip, secondaryYield, proxyTail);
+                        successCount++;
+                    } else {
+                        // z.B. Wochenende, Feiertag oder keine Daten bei Yahoo
+                        skipCount++;
+                    }
+                } catch (err) {
+                    console.error(`Fehler bei CUSIP ${auction.cusip}: ${err.message}`);
+                    errorCount++;
+                }
+            });
+
+            console.log(`Tail Backfill beendet. Erfolgreich: ${successCount}, Übersprungen: ${skipCount}, Fehler: ${errorCount}`);
         });
     }
 }

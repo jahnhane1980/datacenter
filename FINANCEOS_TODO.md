@@ -6,7 +6,6 @@
 3. **FredController Update:** Der `FredController` feuert nun automatisch ein `liquidity_update`-Event via `EventBus.emit()`, sobald er tägliche Daten erfolgreich synchronisiert hat.
 
 ## Offene Baustellen / Next Steps:
-- **Groq API Key:** Der Groq API Key wirft aktuell einen `403 Forbidden` Fehler. Ein neuer Key muss unter https://console.groq.com/ generiert und in die `.env` eingetragen werden.
 - **Weitere Actions bauen:** Als Nächstes können wir weitere Action-Klassen bauen (z.B. für Treasury Auctions inkl. historischem Bid-to-Cover Durchschnitt oder QRA-Schätzungen).
 
 ## Kontext für die KI beim nächsten Start:

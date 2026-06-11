@@ -19,6 +19,7 @@ export class Router {
             'finra:sync': this.runFinraSync.bind(this),
             'fiscal:backfill': this.runFiscalBackfill.bind(this),
             'fiscal:sync': this.runFiscalSync.bind(this),
+            'fiscal:tail-backfill': this.runFiscalTailBackfill.bind(this),
             'fred:backfill': this.runFredBackfill.bind(this),
             'fred:sync': this.runFredSync.bind(this),
             'global:backfill': this.runGlobalBackfill.bind(this),
@@ -111,6 +112,11 @@ export class Router {
     async runFiscalSync() {
         const controller = await this.factory.getController('FiscalController');
         await controller.runDailySync();
+    }
+
+    async runFiscalTailBackfill() {
+        const controller = await this.factory.getController('FiscalController');
+        await controller.runTailBackfill();
     }
 
     async runFredBackfill() {

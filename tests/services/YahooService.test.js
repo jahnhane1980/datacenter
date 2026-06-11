@@ -2,10 +2,18 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { createYahooService } from '../../src/services/YahooService.js';
 import yahooFinance from 'yahoo-finance2';
 
+const { mockQuoteSummary, mockHistorical } = vi.hoisted(() => ({
+    mockQuoteSummary: vi.fn(),
+    mockHistorical: vi.fn()
+}));
+
 vi.mock('yahoo-finance2', () => {
     return {
-        default: {
-            quoteSummary: vi.fn()
+        default: class {
+            constructor() {
+                this.quoteSummary = mockQuoteSummary;
+                this.historical = mockHistorical;
+            }
         }
     };
 });
@@ -24,15 +32,15 @@ describe('YahooService', () => {
     describe('fetchQuarterlyFundamentals', () => {
         it('should fetch and return data', async () => {
             const expectedData = { incomeStatementHistoryQuarterly: {} };
-            yahooFinance.quoteSummary.mockResolvedValue(expectedData);
+            mockQuoteSummary.mockResolvedValue(expectedData);
 
             const result = await service.fetchQuarterlyFundamentals('AAPL');
             expect(result).toEqual(expectedData);
-            expect(yahooFinance.quoteSummary).toHaveBeenCalledWith('AAPL', expect.any(Object));
+            expect(mockQuoteSummary).toHaveBeenCalledWith('AAPL', expect.any(Object));
         });
 
         it('should throw error on failure', async () => {
-            yahooFinance.quoteSummary.mockRejectedValue(new Error('Network error'));
+            mockQuoteSummary.mockRejectedValue(new Error('Network error'));
 
             await expect(service.fetchQuarterlyFundamentals('AAPL')).rejects.toThrow(/Fehler beim Abrufen/);
         });

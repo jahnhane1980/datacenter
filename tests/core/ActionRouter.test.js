@@ -16,6 +16,13 @@ vi.mock('../../src/actions/NetLiquidityAction.js', () => ({
     }
 }));
 
+const mockTreasuryAuctionHandle = vi.fn().mockResolvedValue();
+vi.mock('../../src/actions/TreasuryAuctionAction.js', () => ({
+    TreasuryAuctionAction: class {
+        handle = mockTreasuryAuctionHandle;
+    }
+}));
+
 describe('ActionRouter', () => {
     let router;
     let mockDb;
@@ -40,7 +47,6 @@ describe('ActionRouter', () => {
 
     it('sollte generic macro events zur GenericMacroAction routen', async () => {
         const events = [
-            'treasury_auction_filled',
             'central_bank_update',
             'labor_market_update',
             'qra_estimate_added',
@@ -58,5 +64,11 @@ describe('ActionRouter', () => {
         const event = { type: 'liquidity_update' };
         await router.execute(event);
         expect(mockNetLiquidityHandle).toHaveBeenCalledWith(event);
+    });
+
+    it('sollte treasury_auction_filled zur TreasuryAuctionAction routen', async () => {
+        const event = { type: 'treasury_auction_filled' };
+        await router.execute(event);
+        expect(mockTreasuryAuctionHandle).toHaveBeenCalledWith(event);
     });
 });

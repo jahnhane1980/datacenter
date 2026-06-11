@@ -6,7 +6,7 @@ export class ActionRouter {
         // Momentan leiten wir alle bekannten Events an die GenericMacroAction weiter,
         // um das bisherige Verhalten exakt beizubehalten.
         this.routes = {
-            'treasury_auction_filled': this.runGenericMacroAction.bind(this),
+            'treasury_auction_filled': this.runTreasuryAuctionAction.bind(this),
             'central_bank_update': this.runGenericMacroAction.bind(this),
             'labor_market_update': this.runGenericMacroAction.bind(this),
             'qra_estimate_added': this.runGenericMacroAction.bind(this),
@@ -36,6 +36,12 @@ export class ActionRouter {
     async runNetLiquidityAction(event) {
         const { NetLiquidityAction } = await import('../actions/NetLiquidityAction.js');
         const action = new NetLiquidityAction();
+        await action.handle(event);
+    }
+
+    async runTreasuryAuctionAction(event) {
+        const { TreasuryAuctionAction } = await import('../actions/TreasuryAuctionAction.js');
+        const action = new TreasuryAuctionAction(this.db);
         await action.handle(event);
     }
 }

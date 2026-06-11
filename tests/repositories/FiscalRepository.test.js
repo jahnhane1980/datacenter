@@ -87,4 +87,30 @@ describe('FiscalRepository', () => {
             await expect(repository.getLatestAuctionDate()).rejects.toThrow(/DB Failed/);
         });
     });
+    describe('getHistoricalAuctionStats', () => {
+        it('should return historical stats correctly', async () => {
+            const mockData = [{ auction_date: '2026-06-01' }, { auction_date: '2026-05-01' }];
+            mockSupabaseClient.from().limit.mockResolvedValue({ data: mockData, error: null });
+            
+            // To properly mock the chain, we need to mock 'eq' as well
+            const queryBuilder = mockSupabaseClient.from();
+            queryBuilder.eq = vi.fn().mockReturnThis();
+
+            const result = await repository.getHistoricalAuctionStats('10-Year', 2);
+
+            expect(queryBuilder.select).toHaveBeenCalledWith('auction_date, bid_to_cover_ratio, high_yield, primary_dealer_accepted, direct_bidder_accepted, indirect_bidder_accepted, total_accepted');
+            expect(queryBuilder.eq).toHaveBeenCalledWith('security_term', '10-Year');
+            expect(queryBuilder.order).toHaveBeenCalledWith('auction_date', { ascending: false });
+            expect(queryBuilder.limit).toHaveBeenCalledWith(2);
+            expect(result).toEqual(mockData);
+        });
+
+        it('should throw an error if db fails', async () => {
+            const queryBuilder = mockSupabaseClient.from();
+            queryBuilder.eq = vi.fn().mockReturnThis();
+            queryBuilder.limit.mockResolvedValue({ data: null, error: { message: 'DB Error' } });
+
+            await expect(repository.getHistoricalAuctionStats('10-Year', 2)).rejects.toThrow(/DB Error/);
+        });
+    });
 });
