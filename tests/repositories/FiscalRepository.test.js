@@ -10,7 +10,12 @@ describe('FiscalRepository', () => {
             select: vi.fn().mockReturnThis(),
             order: vi.fn().mockReturnThis(),
             limit: vi.fn().mockReturnThis(),
-            upsert: vi.fn().mockReturnThis()
+            upsert: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
+            in: vi.fn().mockReturnThis(),
+            is: vi.fn().mockReturnThis(),
+            not: vi.fn().mockReturnThis(),
+            update: vi.fn().mockReturnThis()
         };
 
         mockSupabaseClient = {
@@ -91,26 +96,97 @@ describe('FiscalRepository', () => {
         it('should return historical stats correctly', async () => {
             const mockData = [{ auction_date: '2026-06-01' }, { auction_date: '2026-05-01' }];
             mockSupabaseClient.from().limit.mockResolvedValue({ data: mockData, error: null });
-            
-            // To properly mock the chain, we need to mock 'eq' as well
-            const queryBuilder = mockSupabaseClient.from();
-            queryBuilder.eq = vi.fn().mockReturnThis();
 
             const result = await repository.getHistoricalAuctionStats('10-Year', 2);
 
-            expect(queryBuilder.select).toHaveBeenCalledWith('auction_date, bid_to_cover_ratio, high_yield, primary_dealer_accepted, direct_bidder_accepted, indirect_bidder_accepted, total_accepted');
-            expect(queryBuilder.eq).toHaveBeenCalledWith('security_term', '10-Year');
-            expect(queryBuilder.order).toHaveBeenCalledWith('auction_date', { ascending: false });
-            expect(queryBuilder.limit).toHaveBeenCalledWith(2);
+            expect(mockSupabaseClient.from().select).toHaveBeenCalledWith('auction_date, bid_to_cover_ratio, high_yield, primary_dealer_accepted, direct_bidder_accepted, indirect_bidder_accepted, total_accepted');
+            expect(mockSupabaseClient.from().eq).toHaveBeenCalledWith('security_term', '10-Year');
+            expect(mockSupabaseClient.from().order).toHaveBeenCalledWith('auction_date', { ascending: false });
+            expect(mockSupabaseClient.from().limit).toHaveBeenCalledWith(2);
             expect(result).toEqual(mockData);
         });
 
         it('should throw an error if db fails', async () => {
-            const queryBuilder = mockSupabaseClient.from();
-            queryBuilder.eq = vi.fn().mockReturnThis();
-            queryBuilder.limit.mockResolvedValue({ data: null, error: { message: 'DB Error' } });
+            mockSupabaseClient.from().limit.mockResolvedValue({ data: null, error: { message: 'DB Error' } });
 
             await expect(repository.getHistoricalAuctionStats('10-Year', 2)).rejects.toThrow(/DB Error/);
+        });
+    });
+
+    describe('getAuctionsByCusips', () => {
+        it('should return empty array if cusips is empty', async () => {
+            const result = await repository.getAuctionsByCusips([]);
+            expect(result).toEqual([]);
+            expect(mockSupabaseClient.from).not.toHaveBeenCalled();
+        });
+
+        it('should return data if db succeeds', async () => {
+            mockSupabaseClient.from().in.mockResolvedValue({ data: [{ cusip: 'A1' }], error: null });
+            const result = await repository.getAuctionsByCusips(['A1']);
+            expect(mockSupabaseClient.from().in).toHaveBeenCalledWith('cusip', ['A1']);
+            expect(result).toEqual([{ cusip: 'A1' }]);
+        });
+
+        it('should throw error if db fails', async () => {
+            mockSupabaseClient.from().in.mockResolvedValue({ data: null, error: { message: 'DB Error' } });
+            await expect(repository.getAuctionsByCusips(['A1'])).rejects.toThrow(/DB Error/);
+        });
+    });
+
+    describe('getAuctionsWithoutTail', () => {
+        it('should return data if db succeeds', async () => {
+            mockSupabaseClient.from().not.mockResolvedValue({ data: [{ cusip: 'A1' }], error: null });
+            const result = await repository.getAuctionsWithoutTail();
+            expect(mockSupabaseClient.from().is).toHaveBeenCalledWith('proxy_tail', null);
+            expect(mockSupabaseClient.from().not).toHaveBeenCalledWith('high_yield', 'is', null);
+            expect(result).toEqual([{ cusip: 'A1' }]);
+        });
+
+        it('should throw error if db fails', async () => {
+            mockSupabaseClient.from().not.mockResolvedValue({ data: null, error: { message: 'DB Error' } });
+            await expect(repository.getAuctionsWithoutTail()).rejects.toThrow(/DB Error/);
+        });
+    });
+
+    describe('getRecentBillShare', () => {
+        it('should calculate correct share', async () => {
+            const mockData = [
+                { security_type: 'Bill', total_accepted: 200 },
+                { security_type: 'Note', total_accepted: 300 }
+            ];
+            mockSupabaseClient.from().limit.mockResolvedValue({ data: mockData, error: null });
+            
+            const result = await repository.getRecentBillShare();
+            // Total = 500. Bills = 200. Share = 40%
+            expect(result).toBe(40);
+        });
+
+        it('should return 0 if no data', async () => {
+            mockSupabaseClient.from().limit.mockResolvedValue({ data: [], error: null });
+            const result = await repository.getRecentBillShare();
+            expect(result).toBe(0);
+        });
+
+        it('should throw error if db fails', async () => {
+            mockSupabaseClient.from().limit.mockResolvedValue({ data: null, error: { message: 'DB Error' } });
+            await expect(repository.getRecentBillShare()).rejects.toThrow(/DB Error/);
+        });
+    });
+
+    describe('updateAuctionTail', () => {
+        it('should update correctly', async () => {
+            mockSupabaseClient.from().eq.mockResolvedValue({ error: null });
+            await repository.updateAuctionTail('C1', 4.5, 0.1);
+            expect(mockSupabaseClient.from().update).toHaveBeenCalledWith({
+                secondary_market_yield: 4.5,
+                proxy_tail: 0.1
+            });
+            expect(mockSupabaseClient.from().eq).toHaveBeenCalledWith('cusip', 'C1');
+        });
+
+        it('should throw error if db fails', async () => {
+            mockSupabaseClient.from().eq.mockResolvedValue({ error: { message: 'DB Error' } });
+            await expect(repository.updateAuctionTail('C1', 4.5, 0.1)).rejects.toThrow(/DB Error/);
         });
     });
 });

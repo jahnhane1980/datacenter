@@ -16,19 +16,24 @@ export function createQRARepository(supabaseClient) {
         targetQuarter, 
         releaseDate, 
         estimatedNetBorrowing, 
-        estimatedTgaBalance
+        estimatedTgaBalance,
+        consensusMedian = undefined,
+        consensusMin = undefined,
+        consensusMax = undefined
     ) => {
+        const payload = { 
+            target_quarter: targetQuarter,
+            release_date: releaseDate,
+            estimated_net_borrowing: estimatedNetBorrowing,
+            estimated_tga_balance: estimatedTgaBalance
+        };
+        if (consensusMedian !== undefined) payload.consensus_borrowing_median = consensusMedian;
+        if (consensusMin !== undefined) payload.consensus_borrowing_min = consensusMin;
+        if (consensusMax !== undefined) payload.consensus_borrowing_max = consensusMax;
+
         const { error } = await supabaseClient
             .from(DB_TABLE)
-            .upsert(
-                { 
-                    target_quarter: targetQuarter,
-                    release_date: releaseDate,
-                    estimated_net_borrowing: estimatedNetBorrowing,
-                    estimated_tga_balance: estimatedTgaBalance
-                }, 
-                { onConflict: 'target_quarter, release_date' }
-            );
+            .upsert(payload, { onConflict: 'target_quarter, release_date' });
 
         if (error) {
             throw new Error(`Fehler beim Upsert in treasury_qra_estimates (Quarter: ${targetQuarter}, Release: ${releaseDate}): ${error.message}`);
@@ -55,8 +60,52 @@ export function createQRARepository(supabaseClient) {
         return data && data.length > 0 ? data[0] : null;
     };
 
+    /**
+     * Holt die QRA-Schätzung des Vorquartals.
+     * Nutzt order by target_quarter absteigend und überspringt das aktuelle.
+     */
+    const getEstimateForPreviousQuarter = async (currentTargetQuarter) => {
+        const { data, error } = await supabaseClient
+            .from(DB_TABLE)
+            .select('*')
+            .lt('target_quarter', currentTargetQuarter)
+            .order('target_quarter', { ascending: false })
+            .limit(1);
+
+        if (error) {
+            throw new Error(`Fehler beim Abrufen des vorherigen Quartals: ${error.message}`);
+        }
+        return data && data.length > 0 ? data[0] : null;
+    };
+
+    /**
+     * Speichert den ermittelten Konsens für ein Quartal.
+     */
+    const saveQraConsensus = async (targetQuarter, min, max, median) => {
+        const existing = await getLatestEstimateForQuarter(targetQuarter);
+        if (existing) {
+            const { error } = await supabaseClient.from(DB_TABLE).update({
+                consensus_borrowing_min: min,
+                consensus_borrowing_max: max,
+                consensus_borrowing_median: median
+            }).eq('target_quarter', existing.target_quarter).eq('release_date', existing.release_date);
+            if (error) throw new Error(`Fehler beim Update des QRA Konsens: ${error.message}`);
+        } else {
+            const { error } = await supabaseClient.from(DB_TABLE).insert({
+                target_quarter: targetQuarter,
+                release_date: new Date().toISOString().split('T')[0], // Dummy/Today Date
+                consensus_borrowing_min: min,
+                consensus_borrowing_max: max,
+                consensus_borrowing_median: median
+            });
+            if (error) throw new Error(`Fehler beim Insert des QRA Konsens: ${error.message}`);
+        }
+    };
+
     return {
         upsertQraEstimate,
-        getLatestEstimateForQuarter
+        getLatestEstimateForQuarter,
+        getEstimateForPreviousQuarter,
+        saveQraConsensus
     };
 }

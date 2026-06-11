@@ -87,7 +87,10 @@ export class QRAController extends BaseController {
                 estimate.targetQuarter,
                 estimate.releaseDate,
                 estimate.estimatedNetBorrowing,
-                estimate.estimatedTgaBalance
+                estimate.estimatedTgaBalance,
+                oldEstimate ? oldEstimate.consensus_borrowing_median : undefined,
+                oldEstimate ? oldEstimate.consensus_borrowing_min : undefined,
+                oldEstimate ? oldEstimate.consensus_borrowing_max : undefined
             );
 
             // Event feuern, wenn es komplett neu ist oder sich die TGA-Balance geändert hat
@@ -194,6 +197,48 @@ export class QRAController extends BaseController {
                 page++;
             }
             console.log(`\n🎉 Groq Backfill abgeschlossen! Es wurden ${foundCount} historische QRA-Quartale geladen.`);
+        });
+    }
+
+    /**
+     * Führt das Scraping für den Wall Street Konsens aus.
+     */
+    async runConsensusSync() {
+        await this.executeJob('QRA Consensus Sync', async () => {
+            console.log('Suche nach aktuellen QRA Konsens-Schätzungen (Google News RSS)...');
+            
+            const rssUrl = 'https://news.google.com/rss/search?q=Treasury+borrowing+estimate+expectations+consensus&hl=en-US&gl=US&ceid=US:en';
+            const responseText = await ky.get(rssUrl).text();
+            const $ = cheerio.load(responseText, { xmlMode: true });
+            
+            let combinedText = '';
+            $('item').slice(0, 10).each((i, el) => {
+                const title = $(el).find('title').text();
+                const desc = $(el).find('description').text();
+                const cleanDesc = cheerio.load(desc).text(); // HTML Tags entfernen
+                combinedText += `\n\nArticle ${i+1}:\nTitle: ${title}\nSnippet: ${cleanDesc}`;
+            });
+
+            if (!combinedText) {
+                console.log('Keine relevanten News-Snippets gefunden.');
+                return;
+            }
+
+            console.log('Sende News-Snippets an LLM für Konsens-Extraktion...');
+            const aiResult = await this.llmService.parseQraConsensus(combinedText);
+
+            if (aiResult && aiResult.target_quarter && aiResult.median) {
+                await this.qraRepository.saveQraConsensus(
+                    aiResult.target_quarter,
+                    aiResult.min || aiResult.median,
+                    aiResult.max || aiResult.median,
+                    aiResult.median
+                );
+                const billionMedian = (aiResult.median / 1_000_000_000).toFixed(0);
+                console.log(`✅ QRA Konsens für ${aiResult.target_quarter} gespeichert: Median $${billionMedian} Mrd. (Min: ${aiResult.min}, Max: ${aiResult.max})`);
+            } else {
+                console.log('❌ Konnte keine sauberen Konsens-Werte aus den News extrahieren.');
+            }
         });
     }
 }

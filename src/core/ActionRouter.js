@@ -9,8 +9,8 @@ export class ActionRouter {
             'treasury_auction_filled': this.runTreasuryAuctionAction.bind(this),
             'central_bank_update': this.runGenericMacroAction.bind(this),
             'labor_market_update': this.runGenericMacroAction.bind(this),
-            'qra_estimate_added': this.runGenericMacroAction.bind(this),
-            'qra_estimate_updated': this.runGenericMacroAction.bind(this),
+            'qra_estimate_added': this.runQRAAction.bind(this),
+            'qra_estimate_updated': this.runQRAAction.bind(this),
             'liquidity_update': this.runNetLiquidityAction.bind(this)
         };
     }
@@ -42,6 +42,22 @@ export class ActionRouter {
     async runTreasuryAuctionAction(event) {
         const { TreasuryAuctionAction } = await import('../actions/TreasuryAuctionAction.js');
         const action = new TreasuryAuctionAction(this.db);
+        await action.handle(event);
+    }
+
+    async runQRAAction(event) {
+        const { QRAAction } = await import('../actions/QRAAction.js');
+        const { createQRARepository } = await import('../repositories/QRARepository.js');
+        const { createFiscalRepository } = await import('../repositories/FiscalRepository.js');
+        const { createLLMService } = await import('../services/LLMService.js');
+        const { createNotificationService } = await import('../services/NotificationService.js');
+
+        const action = new QRAAction(
+            createQRARepository(this.db),
+            createFiscalRepository(this.db),
+            createLLMService(),
+            createNotificationService()
+        );
         await action.handle(event);
     }
 }

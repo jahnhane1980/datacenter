@@ -1,5 +1,5 @@
 import ky from 'ky';
-import { getQraSystemPrompt } from '../prompts/qraPrompts.js';
+import { getQraSystemPrompt, getQraConsensusSystemPrompt } from '../prompts/qraPrompts.js';
 import { getSecSystemPrompt } from '../prompts/secPrompts.js';
 import { getRegulationPrompt } from '../prompts/regulationPrompts.js';
 import { getMacroAlertSystemPrompt, getMacroAlertUserPrompt } from '../prompts/alertPrompts.js';
@@ -104,6 +104,12 @@ export class LLMService {
     async parseQraArticle(articleText, url) {
         const systemPrompt = getQraSystemPrompt();
         const userPrompt = `Hier ist der Text des Artikels:\n\n${articleText}`;
+        return await this._queryGroq(systemPrompt, userPrompt, true, 500, 10000);
+    }
+
+    async parseQraConsensus(newsText) {
+        const systemPrompt = getQraConsensusSystemPrompt();
+        const userPrompt = `Hier sind die aktuellen News Snippets (heute ist ${new Date().toISOString().split('T')[0]}):\n\n${newsText}`;
         return await this._queryGroq(systemPrompt, userPrompt, true, 500, 10000);
     }
 

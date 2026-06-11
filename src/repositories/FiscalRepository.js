@@ -138,6 +138,37 @@ export function createFiscalRepository(supabaseClient) {
     };
 
     /**
+     * Berechnet den prozentualen Anteil der T-Bills an der gesamten Schuldenaufnahme der letzten X Auktionen.
+     */
+    const getRecentBillShare = async (limit = 100) => {
+        const { data, error } = await supabaseClient
+            .from(DB_TABLE)
+            .select('security_type, total_accepted')
+            .not('total_accepted', 'is', null)
+            .order('auction_date', { ascending: false })
+            .limit(limit);
+
+        if (error) {
+            throw new Error(`Fehler beim Abrufen der Bill Share: ${error.message}`);
+        }
+
+        if (!data || data.length === 0) return 0;
+
+        let totalBills = 0;
+        let totalDebt = 0;
+
+        data.forEach(auction => {
+            const accepted = parseFloat(auction.total_accepted) || 0;
+            totalDebt += accepted;
+            if (auction.security_type === 'Bill') {
+                totalBills += accepted;
+            }
+        });
+
+        return totalDebt > 0 ? (totalBills / totalDebt) * 100 : 0;
+    };
+
+    /**
      * Aktualisiert den Tail-Wert einer bestehenden Auktion.
      */
     const updateAuctionTail = async (cusip, secondaryYield, proxyTail) => {
@@ -160,6 +191,7 @@ export function createFiscalRepository(supabaseClient) {
         getAuctionsByCusips,
         getHistoricalAuctionStats,
         getAuctionsWithoutTail,
+        getRecentBillShare,
         updateAuctionTail
     };
 }

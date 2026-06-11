@@ -32,6 +32,7 @@ export class Router {
             'options:historic': this.runOptionsHistoric.bind(this),
             'options:intra': this.runOptionsIntra.bind(this),
             'qra:backfill': this.runQraBackfill.bind(this),
+            'qra:consensus-sync': this.runQraConsensusSync.bind(this),
             'qra:sync': this.runQraSync.bind(this),
             'regulation:sync': this.runRegulationSync.bind(this),
             'sec:ciks': this.runSecCiks.bind(this),
@@ -186,6 +187,11 @@ export class Router {
     async runQraBackfill() {
         const controller = await this.factory.getController('QRAController');
         await controller.runBackfill();
+    }
+
+    async runQraConsensusSync() {
+        const controller = await this.factory.getController('QRAController');
+        await controller.runConsensusSync();
     }
 
     async runQraSync() {

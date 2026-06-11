@@ -65,6 +65,18 @@ describe('TreasuryAuctionAction', () => {
                 primary_dealer_accepted: 250,
                 direct_bidder_accepted: 250,
                 indirect_bidder_accepted: 500
+            },
+            {
+                // Missing fields to cover falsy branches
+                bid_to_cover_ratio: null,
+                high_yield: null,
+                total_accepted: null
+            },
+            {
+                // total_accepted present but missing allocations to cover `|| 0` branches
+                bid_to_cover_ratio: 2.0,
+                high_yield: 4.0,
+                total_accepted: 1000
             }
         ];
         

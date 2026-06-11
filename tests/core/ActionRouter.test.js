@@ -4,24 +4,30 @@ import { ActionRouter } from '../../src/core/ActionRouter.js';
 // Dynamische Imports mocken, um Seiteneffekte der Actions zu vermeiden
 const mockGenericHandle = vi.fn().mockResolvedValue();
 vi.mock('../../src/actions/GenericMacroAction.js', () => ({
-    GenericMacroAction: class {
-        handle = mockGenericHandle;
-    }
+    GenericMacroAction: class { handle = mockGenericHandle; }
 }));
 
 const mockNetLiquidityHandle = vi.fn().mockResolvedValue();
 vi.mock('../../src/actions/NetLiquidityAction.js', () => ({
-    NetLiquidityAction: class {
-        handle = mockNetLiquidityHandle;
-    }
+    NetLiquidityAction: class { handle = mockNetLiquidityHandle; }
 }));
 
 const mockTreasuryAuctionHandle = vi.fn().mockResolvedValue();
 vi.mock('../../src/actions/TreasuryAuctionAction.js', () => ({
-    TreasuryAuctionAction: class {
-        handle = mockTreasuryAuctionHandle;
-    }
+    TreasuryAuctionAction: class { handle = mockTreasuryAuctionHandle; }
 }));
+
+const mockQraHandle = vi.fn().mockResolvedValue();
+vi.mock('../../src/actions/QRAAction.js', () => ({
+    QRAAction: class { handle = mockQraHandle; }
+}));
+
+// Mocks für die Services, damit runQraAction keine .env Keys braucht
+vi.mock('../../src/repositories/QRARepository.js', () => ({ createQRARepository: vi.fn() }));
+vi.mock('../../src/repositories/FiscalRepository.js', () => ({ createFiscalRepository: vi.fn() }));
+vi.mock('../../src/services/LLMService.js', () => ({ createLLMService: vi.fn() }));
+vi.mock('../../src/services/NotificationService.js', () => ({ createNotificationService: vi.fn() }));
+vi.mock('../../src/repositories/FredRepository.js', () => ({ createFredRepository: vi.fn() }));
 
 describe('ActionRouter', () => {
     let router;
@@ -46,17 +52,20 @@ describe('ActionRouter', () => {
     });
 
     it('sollte generic macro events zur GenericMacroAction routen', async () => {
-        const events = [
-            'central_bank_update',
-            'labor_market_update',
-            'qra_estimate_added',
-            'qra_estimate_updated'
-        ];
-
+        const events = ['central_bank_update', 'labor_market_update'];
         for (const type of events) {
             const event = { type };
             await router.execute(event);
             expect(mockGenericHandle).toHaveBeenCalledWith(event);
+        }
+    });
+
+    it('sollte qra_estimate events zur QRAAction routen', async () => {
+        const events = ['qra_estimate_added', 'qra_estimate_updated'];
+        for (const type of events) {
+            const event = { type };
+            await router.execute(event);
+            expect(mockQraHandle).toHaveBeenCalledWith(event);
         }
     });
 
