@@ -10,3 +10,4 @@ tmp_downloads/
 archives/
 tmp_event/*
 !tmp_event/README.md
+coverage/

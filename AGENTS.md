@@ -23,3 +23,6 @@
 
 ## Regel 5: Prettify
 * Code-Ausgaben müssen sauber formatiert und exakt eingerückt ausgegeben werden. Fokus liegt auf maximaler Struktur und Lesbarkeit.
+
+## Regel 6: Coverage-Check
+* Führe nach Änderungen an Controllern oder Repositories immer  npm run coverage  aus und weise mich auf ungetestete Code-Pfade hin.

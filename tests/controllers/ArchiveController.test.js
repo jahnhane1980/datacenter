@@ -65,7 +65,7 @@ describe('ArchiveController', () => {
             .mockResolvedValueOnce({ data: mockCandles, error: null })
             .mockResolvedValueOnce({ data: [], error: null });
 
-        mockArchiveRepo.upsertM5Candles.mockReturnValue(2); // 2 erfolgreich archiviert
+        mockArchiveRepo.upsertM5Candles.mockResolvedValue(2); // 2 erfolgreich archiviert
         
         // Mock upsert log
         mockQueryBuilder.upsert.mockResolvedValue({ error: null });

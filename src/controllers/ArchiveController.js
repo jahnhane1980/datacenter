@@ -60,8 +60,8 @@ export class ArchiveController extends BaseController {
                         break;
                     }
 
-                    // Schreibe in lokale SQLite
-                    const upsertedCount = this.archiveRepository.upsertM5Candles(candles);
+                    // Schreibe ins Supabase Archiv
+                    const upsertedCount = await this.archiveRepository.upsertM5Candles(candles);
                     totalArchived += upsertedCount;
 
                     lastTimestamp = candles[candles.length - 1].timestamp;
