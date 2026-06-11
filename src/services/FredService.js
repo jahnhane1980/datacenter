@@ -36,9 +36,11 @@ export function createFredService(apiKey = process.env.FRED_API_KEY) {
         try {
             const response = await ky.get(BASE_URL, { 
                 searchParams,
+                timeout: 30000,
                 retry: {
                     limit: 3,
-                    statusCodes: [429]
+                    statusCodes: [408, 413, 429, 500, 502, 503, 504],
+                    methods: ['get']
                 }
             }).json();
             return response.observations;
