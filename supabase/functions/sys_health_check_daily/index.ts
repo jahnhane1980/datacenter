@@ -80,7 +80,6 @@ serve(async (req)=>{
     threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
     const threeDaysAgoStr = threeDaysAgo.toISOString().split('T')[0];
     await supabase.from('sys_insert_logs').delete().lt('log_date', threeDaysAgoStr);
-    
     return new Response(JSON.stringify({
       success: true
     }), {

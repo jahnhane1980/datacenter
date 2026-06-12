@@ -6,6 +6,7 @@ tmp/
 snippets/
 supabase/.temp
 supabase/seed.sql
+supabase/seed2.sql
 tmp_downloads/
 archives/
 tmp_event/*
