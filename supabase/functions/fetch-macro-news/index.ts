@@ -50,8 +50,8 @@ serve(async (req)=>{
     if (deleteError) {
       console.error("Database cleanup error:", deleteError);
     }
-    // Limit auf 150 erhöht, da wir nun für 2-stündige Scans mehr Artikel erfassen müssen
-    const alpacaUrl = "https://data.alpaca.markets/v1beta1/news?limit=150&exclude_contentless=true";
+    // Limit auf 50 (Maximum für Alpaca API) gesetzt, für stündliche Scans
+    const alpacaUrl = "https://data.alpaca.markets/v1beta1/news?limit=50&exclude_contentless=true";
     const alpacaResponse = await fetch(alpacaUrl, {
       method: "GET",
       headers: {
