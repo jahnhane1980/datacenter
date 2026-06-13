@@ -10,6 +10,8 @@ describe('FredRepository', () => {
             select: vi.fn().mockReturnThis(),
             order: vi.fn().mockReturnThis(),
             limit: vi.fn().mockReturnThis(),
+            eq: vi.fn().mockReturnThis(),
+            single: vi.fn().mockReturnThis(),
             upsert: vi.fn().mockReturnThis()
         };
 
@@ -109,6 +111,33 @@ describe('FredRepository', () => {
             mockSupabaseClient.from().limit.mockResolvedValue({ data: null, error: { message: 'DB Failed' } });
 
             await expect(repository.getLatestObservationDate()).rejects.toThrow(/DB Failed/);
+        });
+    });
+
+    describe('getHistoricalIndicatorValues', () => {
+        it('should return empty array if definition not found', async () => {
+            mockSupabaseClient.from().single.mockResolvedValue({ data: null, error: { message: 'Not found' } });
+            
+            const result = await repository.getHistoricalIndicatorValues('T10Y2Y', 25);
+            expect(result).toEqual([]);
+        });
+
+        it('should return historical values if definition is found', async () => {
+            mockSupabaseClient.from().single.mockResolvedValue({ data: { id: 10 }, error: null });
+            mockSupabaseClient.from().limit.mockResolvedValue({ data: [{ observation_date: '2026-06-08', value: -0.2 }], error: null });
+            
+            const result = await repository.getHistoricalIndicatorValues('T10Y2Y', 25);
+            
+            expect(mockSupabaseClient.from).toHaveBeenCalledWith('macro_us_indicator_definition');
+            expect(mockSupabaseClient.from).toHaveBeenCalledWith('macro_us_indicator_values');
+            expect(result).toEqual([{ observation_date: '2026-06-08', value: -0.2 }]);
+        });
+
+        it('should throw error on DB failure for values', async () => {
+            mockSupabaseClient.from().single.mockResolvedValue({ data: { id: 10 }, error: null });
+            mockSupabaseClient.from().limit.mockResolvedValue({ data: null, error: { message: 'DB Error' } });
+            
+            await expect(repository.getHistoricalIndicatorValues('T10Y2Y', 25)).rejects.toThrow(/DB Error/);
         });
     });
 });

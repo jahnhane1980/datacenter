@@ -11,7 +11,8 @@ export class ActionRouter {
             'labor_market_update': this.runGenericMacroAction.bind(this),
             'qra_estimate_added': this.runQRAAction.bind(this),
             'qra_estimate_updated': this.runQRAAction.bind(this),
-            'liquidity_update': this.runNetLiquidityAction.bind(this)
+            'liquidity_update': this.runNetLiquidityAction.bind(this),
+            'yield_curve_update': this.runYieldCurveAction.bind(this)
         };
     }
 
@@ -56,6 +57,18 @@ export class ActionRouter {
             createQRARepository(this.db),
             createFiscalRepository(this.db),
             createLLMService(),
+            createNotificationService()
+        );
+        await action.handle(event);
+    }
+
+    async runYieldCurveAction(event) {
+        const { YieldCurveAction } = await import('../actions/YieldCurveAction.js');
+        const { createFredRepository } = await import('../repositories/FredRepository.js');
+        const { createNotificationService } = await import('../services/NotificationService.js');
+        
+        const action = new YieldCurveAction(
+            createFredRepository(this.db),
             createNotificationService()
         );
         await action.handle(event);

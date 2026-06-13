@@ -88,10 +88,42 @@ export function createFredRepository(supabaseClient) {
         return data && data.length > 0 ? data[0].observation_date : null;
     };
 
+    /**
+     * Holt die aktuellsten Werte für einen spezifischen FRED Indikator (z.B. 'T10Y2Y').
+     * @param {string} seriesId - Der FRED Ticker
+     * @param {number} limit - Anzahl der Datensätze
+     * @returns {Promise<Array>} Array von { observation_date, value }
+     */
+    const getHistoricalIndicatorValues = async (seriesId, limit = 25) => {
+        const { data: defData, error: defError } = await supabaseClient
+            .from(DB_TABLE_INDICATOR_DEFINITION)
+            .select('id')
+            .eq('series_id', seriesId)
+            .single();
+
+        if (defError || !defData) {
+            return []; 
+        }
+
+        const { data, error } = await supabaseClient
+            .from(DB_TABLE_INDICATOR_VALUES)
+            .select('observation_date, value')
+            .eq('indicator_id', defData.id)
+            .order('observation_date', { ascending: false })
+            .limit(limit);
+
+        if (error) {
+            throw new Error(`Fehler beim Abrufen der historischen Werte für ${seriesId}: ${error.message}`);
+        }
+
+        return data || [];
+    };
+
     return {
         upsertMacroData,
         upsertMacroIndicatorValues,
         getMacroIndicatorDefinitions,
-        getLatestObservationDate
+        getLatestObservationDate,
+        getHistoricalIndicatorValues
     };
 }

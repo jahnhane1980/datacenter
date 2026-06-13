@@ -1,4 +1,5 @@
 import ky from 'ky';
+import { DateHelper } from '../core/DateHelper.js';
 import { getQraSystemPrompt, getQraConsensusSystemPrompt } from '../prompts/qraPrompts.js';
 import { getSecSystemPrompt } from '../prompts/secPrompts.js';
 import { getRegulationPrompt } from '../prompts/regulationPrompts.js';
@@ -49,19 +50,23 @@ export class LLMService {
                 return jsonMode ? JSON.parse(replyContent) : replyContent;
 
             } catch (error) {
-                if (error.response && error.response.status === 429) {
+                const status = error.response ? error.response.status : null;
+                if (status === 429 || status === 502 || status === 503) {
                     retryCount++;
-                    let exactReason = "Unbekanntes Limit";
-                    try {
-                        const errorBody = await error.response.json();
-                        if (errorBody.error && errorBody.error.message) {
-                            exactReason = errorBody.error.message;
-                        }
-                    } catch (e) {}
-
-                    console.log(`  [WARNUNG] 🧨 Groq Rate Limit (429)! Grund: ${exactReason}`);
+                    let exactReason = "Unbekanntes Limit oder Serverfehler";
                     
-                    if (exactReason.includes('per day')) {
+                    if (status === 429) {
+                        try {
+                            const errorBody = await error.response.json();
+                            if (errorBody.error && errorBody.error.message) {
+                                exactReason = errorBody.error.message;
+                            }
+                        } catch (e) {}
+                    }
+
+                    console.log(`  [WARNUNG] 🧨 Groq API Fehler (${status})! Grund: ${exactReason}`);
+                    
+                    if (status === 429 && exactReason.includes('per day')) {
                         console.log(`  [ABBRUCH] Tageslimit erreicht. Skript muss morgen wieder laufen.`);
                         throw new Error(`429|${exactReason}`); 
                     }
@@ -109,7 +114,7 @@ export class LLMService {
 
     async parseQraConsensus(newsText) {
         const systemPrompt = getQraConsensusSystemPrompt();
-        const userPrompt = `Hier sind die aktuellen News Snippets (heute ist ${new Date().toISOString().split('T')[0]}):\n\n${newsText}`;
+        const userPrompt = `Hier sind die aktuellen News Snippets (heute ist ${DateHelper.toSqlDate(new Date())}):\n\n${newsText}`;
         return await this._queryGroq(systemPrompt, userPrompt, true, 500, 10000);
     }
 

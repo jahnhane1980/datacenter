@@ -1,11 +1,14 @@
 export class DateHelper {
     /**
-     * Wandelt ein JavaScript Date-Objekt in einen YYYY-MM-DD String um.
+     * Wandelt ein JavaScript Date-Objekt in einen YYYY-MM-DD String um (Lokale Zeitzone).
      * @param {Date} date 
      * @returns {string} Format: YYYY-MM-DD
      */
     static toSqlDate(date = new Date()) {
-        return date.toISOString().split('T')[0];
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
     }
 
     /**

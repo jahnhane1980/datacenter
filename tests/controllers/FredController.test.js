@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { FredController } from '../../src/controllers/FredController.js';
 import { FRED_SERIES } from '../../src/services/FredService.js';
+import { EventBus } from '../../src/core/EventBus.js';
+
+vi.mock('../../src/core/EventBus.js', () => ({
+    EventBus: { emit: vi.fn() }
+}));
 
 describe('FredController', () => {
     let mockFredRepo;
@@ -83,6 +88,33 @@ describe('FredController', () => {
             expect(mockFredRepo.upsertMacroIndicatorValues).toHaveBeenCalledWith([
                 { indicator_id: 10, observation_date: '2026-06-07', value: 750000 }
             ]);
+        });
+
+        it('should fire events for liquidity and yield curve if date is newer', async () => {
+            mockFredRepo.getLatestObservationDate.mockResolvedValue('2026-06-07');
+            mockFredRepo.getMacroIndicatorDefinitions.mockResolvedValue([]);
+            
+            // Latest is 2026-06-07. We return data for 2026-06-08 (newer).
+            mockFredService.fetchObservations.mockImplementation(async (seriesId) => {
+                if (seriesId === FRED_SERIES.TGA_BALANCE) return [{ date: '2026-06-08', value: '750000' }];
+                if (seriesId === FRED_SERIES.YIELD_SPREAD_10Y2Y) return [{ date: '2026-06-08', value: '-0.20' }];
+                return [];
+            });
+
+            await controller.runDailySync();
+
+            expect(EventBus.emit).toHaveBeenCalledWith('FredController', 'liquidity_update', {
+                date: '2026-06-08',
+                tga: 750000,
+                rrp: null,
+                fed: null,
+                sofr: null
+            });
+
+            expect(EventBus.emit).toHaveBeenCalledWith('FredController', 'yield_curve_update', {
+                date: '2026-06-08',
+                spread: -0.20
+            });
         });
         
         it('should skip days with all null values', async () => {

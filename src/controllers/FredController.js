@@ -39,6 +39,8 @@ export class FredController extends BaseController {
         const depositsAllData = await this.fredService.fetchObservations(FRED_SERIES.DEPOSITS_ALL, startDate);
         await this.pacingManager.sleepMs(1000);
         const demandDepositsData = await this.fredService.fetchObservations(FRED_SERIES.DEMAND_DEPOSITS, startDate);
+        await this.pacingManager.sleepMs(1000);
+        const spreadData = await this.fredService.fetchObservations(FRED_SERIES.YIELD_SPREAD_10Y2Y, startDate);
 
         console.log('Daten erfolgreich geladen. Führe Merge nach Datum durch...');
 
@@ -57,7 +59,8 @@ export class FredController extends BaseController {
                         bank_reserves_fed: null,
                         sofr_rate: null,
                         deposits_all: null,
-                        demand_deposits: null
+                        demand_deposits: null,
+                        yield_spread_10y2y: null
                     });
                 }
                 
@@ -74,6 +77,7 @@ export class FredController extends BaseController {
         processSeries(sofrData, 'sofr_rate');
         processSeries(depositsAllData, 'deposits_all');
         processSeries(demandDepositsData, 'demand_deposits');
+        processSeries(spreadData, 'yield_spread_10y2y');
 
         console.log('Lade Makro-Definitionen für das ID-Mapping...');
         const definitions = await this.fredRepo.getMacroIndicatorDefinitions();
@@ -90,7 +94,8 @@ export class FredController extends BaseController {
             bank_reserves_fed: FRED_SERIES.BANK_RESERVES_FED_WEEKLY,
             sofr_rate: FRED_SERIES.SECURED_OVERNIGHT_FINANCING_RATE,
             deposits_all: FRED_SERIES.DEPOSITS_ALL,
-            demand_deposits: FRED_SERIES.DEMAND_DEPOSITS
+            demand_deposits: FRED_SERIES.DEMAND_DEPOSITS,
+            yield_spread_10y2y: FRED_SERIES.YIELD_SPREAD_10Y2Y
         };
 
         console.log(`Starte Filterung und Upsert für ${mergedDataByDate.size} erfasste Tage...`);
@@ -108,7 +113,8 @@ export class FredController extends BaseController {
                 values.bank_reserves_fed === null &&
                 values.sofr_rate === null &&
                 values.deposits_all === null &&
-                values.demand_deposits === null
+                values.demand_deposits === null &&
+                values.yield_spread_10y2y === null
             ) {
                 skippedCount++;
                 continue;
@@ -153,6 +159,13 @@ export class FredController extends BaseController {
                         fed: values.fed_balance,
                         sofr: values.sofr_rate
                     });
+
+                    if (values.yield_spread_10y2y !== null) {
+                        EventBus.emit('FredController', 'yield_curve_update', {
+                            date: date,
+                            spread: values.yield_spread_10y2y
+                        });
+                    }
                 }
 
                 successCount++;

@@ -22,6 +22,11 @@ vi.mock('../../src/actions/QRAAction.js', () => ({
     QRAAction: class { handle = mockQraHandle; }
 }));
 
+const mockYieldCurveHandle = vi.fn().mockResolvedValue();
+vi.mock('../../src/actions/YieldCurveAction.js', () => ({
+    YieldCurveAction: class { handle = mockYieldCurveHandle; }
+}));
+
 // Mocks für die Services, damit runQraAction keine .env Keys braucht
 vi.mock('../../src/repositories/QRARepository.js', () => ({ createQRARepository: vi.fn() }));
 vi.mock('../../src/repositories/FiscalRepository.js', () => ({ createFiscalRepository: vi.fn() }));
@@ -79,5 +84,11 @@ describe('ActionRouter', () => {
         const event = { type: 'treasury_auction_filled' };
         await router.execute(event);
         expect(mockTreasuryAuctionHandle).toHaveBeenCalledWith(event);
+    });
+
+    it('sollte yield_curve_update zur YieldCurveAction routen', async () => {
+        const event = { type: 'yield_curve_update' };
+        await router.execute(event);
+        expect(mockYieldCurveHandle).toHaveBeenCalledWith(event);
     });
 });
