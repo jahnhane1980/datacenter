@@ -28,6 +28,15 @@ export class ControllerRegistry {
                     this.pacingManager
                 );
             },
+            'ClimaxController': async () => {
+                const { createTickerRepository } = await import('../repositories/TickerRepository.js');
+                const { ClimaxController } = await import('../controllers/ClimaxController.js');
+                
+                return new ClimaxController(
+                    createTickerRepository(this.db),
+                    this.db
+                );
+            },
             'DailyController': async () => {
                 const { createTickerRepository } = await import('../repositories/TickerRepository.js');
                 const { CandleRepository } = await import('../repositories/CandleRepository.js');

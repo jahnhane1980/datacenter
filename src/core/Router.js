@@ -40,7 +40,8 @@ export class Router {
             'sector-rotation:sync': this.runSectorRotationSync.bind(this),
             'sentiment-news:backfill': this.runSentimentNewsBackfill.bind(this),
             'sentiment-news:sync': this.runSentimentNewsSync.bind(this),
-            'market-calendar:sync': this.runMarketCalendarSync.bind(this)
+            'market-calendar:sync': this.runMarketCalendarSync.bind(this),
+            'climax:scan': this.runClimaxScan.bind(this)
         };
     }
 
@@ -234,5 +235,10 @@ export class Router {
         const { TradingCalendarBuilder } = await import('./calendar/TradingCalendarBuilder.js');
         const builder = new TradingCalendarBuilder(this.db);
         await builder.buildCalendar(2000, 2050);
+    }
+
+    async runClimaxScan() {
+        const controller = await this.factory.getController('ClimaxController');
+        await controller.runScan();
     }
 }

@@ -12,7 +12,8 @@ export class ActionRouter {
             'qra_estimate_added': this.runQRAAction.bind(this),
             'qra_estimate_updated': this.runQRAAction.bind(this),
             'liquidity_update': this.runNetLiquidityAction.bind(this),
-            'yield_curve_update': this.runYieldCurveAction.bind(this)
+            'yield_curve_update': this.runYieldCurveAction.bind(this),
+            'selling_climax_detected': this.runSellingClimaxAction.bind(this)
         };
     }
 
@@ -69,6 +70,16 @@ export class ActionRouter {
         
         const action = new YieldCurveAction(
             createFredRepository(this.db),
+            createNotificationService()
+        );
+        await action.handle(event);
+    }
+
+    async runSellingClimaxAction(event) {
+        const { SellingClimaxAction } = await import('../actions/SellingClimaxAction.js');
+        const { createNotificationService } = await import('../services/NotificationService.js');
+        
+        const action = new SellingClimaxAction(
             createNotificationService()
         );
         await action.handle(event);

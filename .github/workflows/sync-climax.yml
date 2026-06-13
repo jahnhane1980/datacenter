@@ -1,0 +1,35 @@
+name: Selling Climax Scan
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  schedule:
+    # Läuft jeden Dienstag bis Samstag um 08:15 Uhr UTC (10:15 Uhr MESZ)
+    # Garantiert, dass Daily, M5, CBOE und FINRA bereits fertig synchronisiert sind.
+    - cron: '15 8 * * 2-6'
+  
+  # Erlaubt den manuellen Start über die GitHub-Oberfläche
+  workflow_dispatch: 
+
+jobs:
+  run-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code auschecken
+        uses: actions/checkout@v4
+
+      - name: Node.js 22 einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+
+      - name: Pakete installieren
+        run: npm install
+
+      - name: Selling Climax Scan ausführen
+        run: node sync.js --task climax
+        env:
+          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+          NTFY_URL: ${{ secrets.NTFY_URL }}
