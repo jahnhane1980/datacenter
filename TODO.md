@@ -46,6 +46,26 @@
   - Kontext: Aktuell `console.warn` + `return null`. Kein Alert. Das Datum der nächsten QRA-Runde kann verpasst werden.
   - Antwort: ___
 
+- [ ] **[MarketStatusService] Soll bei API-Fehler `false` statt `true` als Fallback zurückgegeben werden?**
+  - Kontext: Aktueller Fallback `return true` lässt alle nachgelagerten Sync-Calls durch, auch wenn Polygon nicht erreichbar ist. Das kann das Tageslimit von AlphaVantage (25 Calls) und Finnhub aufbrauchen.
+  - Antwort: ___
+
+- [ ] **[AlphaVantageOptionService] Wird die Klasse als Singleton verwendet oder kann sie mehrfach instanziiert werden?**
+  - Kontext: `callCounter` ist eine Instanz-Variable. Wenn der Controller mehrfach `new AlphaVantageOptionService()` aufruft, beginnt der Counter bei 0 – das 25-Calls-Tageslimit wird nicht korrekt eingehalten.
+  - Antwort: ___
+
+- [ ] **[OptionRepository] Soll `scraped_at` auf Minuten gerundet werden oder ist `contract_id` alleine als Conflict-Key für `insertAlphaVantageRatios` ausreichend?**
+  - Kontext: `new Date().toISOString()` als Conflict-Key ist zu fein (Millisekunden-Granularität). Zwei Aufrufe innerhalb von 1ms erzeugen keinen Conflict – doppelte Zeilen sind möglich.
+  - Antwort: ___
+
+- [ ] **[SectorRotationController] Ist sichergestellt, dass `etfIndex` immer >= 70 ist, wenn `i >= 70` im SPY-Loop?**
+  - Kontext: Der SPY-Loop beginnt bei `i = 70`. Der ETF-Index läuft nicht synchron zum SPY-Index. Wenn `etfIndex < 60`, greift `etfData[idxMinus60]` auf `undefined` zu → TypeError.
+  - Antwort: ___
+
+- [ ] **[LaborMarketController] Gibt es in FRED-Observations einen `preliminary`-Indikator oder muss `is_preliminary` manuell bestimmt werden?**
+  - Kontext: Aktuell werden alle Delta-Sync-Daten als `is_preliminary = true` gespeichert, auch wenn FRED den Wert bereits final revisioniert hat.
+  - Antwort: ___
+
 ---
 
 ## 🔴 Hoch – Sofortiger Handlungsbedarf
@@ -144,6 +164,50 @@
   - Datei: `src/services/QRAService.js` (Zeile 62–71)
   - Problem: `new Date()` + `getMonth()` (lokal). Auf Servern in UTC-5 oder UTC+9 kann kurz nach Mitternacht der falsche Monat (und damit das falsche Quartal) ermittelt werden → QRA-Daten werden einem falschen Quartal zugeordnet.
   - Lösung: `now.getUTCMonth()` wie in `FinraService` (Z. 61).
+
+- [ ] **MarketStatusService: Fallback `return true` bei Netzwerkfehler – kann Tageslimits verbrauchen**
+  - Datei: `src/services/MarketStatusService.js` (Zeile 21)
+  - Problem: Bei Polygon-Netzwerkfehler gibt `isMarketOpen()` `true` zurück. Alle nachgelagerten Sync-Prozesse (AlphaVantage 25 Calls/Tag, Finnhub 60/Min, etc.) werden angetriggert, obwohl der Markt möglicherweise geschlossen ist oder die API nicht erreichbar war. In GitHub Actions ohne stabile Netzverbindung kann das Tageslimits aufbrauchen.
+  - Klärung: Ist der Fallback absichtlich so gesetzt?
+
+- [ ] **AlphaVantageOptionService: API-Key direkt in URL-String – Key-Leaking in Logs (Z. 70, 114)**
+  - Datei: `src/services/AlphaVantageOptionService.js` (Zeile 70, 114)
+  - Problem: `\`query?function=...&apikey=${this.apiKey}\`` – der Key ist Teil des URL-Strings, nicht als `searchParams` gesetzt. Landet in ky-Error-Messages und potenziell in GitHub Actions-Logs.
+  - Lösung: `this.api.get('query', { searchParams: { function: ..., apikey: this.apiKey } })`
+
+- [ ] **FinnhubService: `prefix` statt `prefixUrl` in `ky.create()` – alle API-Calls schlagen lautlos fehl**
+  - Datei: `src/services/FinnhubService.js` (Zeile 17)
+  - Problem: `ky.create({ prefix: '...' })` – `ky` kennt keine `prefix`-Option. Der korrekte Key ist `prefixUrl`. Mit dem falschen Key wird die Basis-URL still ignoriert → alle `this.api.get(endpoint)` Calls nutzen relative Pfade ohne Host → Netzwerkfehler. Sämtliche Kalender-Daten (Earnings, FDA) können nicht abgerufen werden.
+  - Lösung: `prefix` → `prefixUrl` korrigieren.
+
+- [ ] **FiscalService: `fetchAuctions` gibt `response.data` ohne Null-Check zurück (Z. 28)**
+  - Datei: `src/services/FiscalService.js` (Zeile 28)
+  - Problem: `return response.data;` – wenn die Treasury API `{ meta: {...} }` ohne `data`-Property antwortet (leeres Ergebnis), wird `undefined` zurückgegeben. Der FiscalController iteriert dann über `undefined` → **TypeError: `undefined` is not iterable**.
+  - Lösung: `return response.data || [];`
+
+- [ ] **ArchiveRepository: Globaler Import von `archiveSupabaseClient` – kein DI, kein Fehler-Guard**
+  - Datei: `src/repositories/ArchiveRepository.js` (Zeile 1, 7)
+  - Problem: `archiveSupabaseClient` wird als Modul-Level-Singleton importiert und direkt ohne Null-Check verwendet. Wenn `ArchiveSupabaseClient.js` beim Import wirft (fehlende Env-Vars), bricht das gesamte Modul. Alle anderen Repositories nutzen DI. Unit-Tests müssen das gesamte Modul mocken statt einfach DI zu nutzen.
+  - Lösung: `constructor(supabaseClient = archiveSupabaseClient)` als optionalen DI-Parameter ergänzen.
+
+- [ ] **QRAController: `runSync()` – Monat-Check nutzt lokale Zeitzone (Z. 55)**
+  - Datei: `src/controllers/QRAController.js` (Zeile 55)
+  - Problem: `now.getMonth() + 1` ist lokal. Auf einem Server in UTC+2 kann nahe Mitternacht der falsche Monat ermittelt werden → QRA-Sync läuft nicht oder läuft außerplanmäßig.
+  - Lösung: `now.getUTCMonth() + 1`
+
+- [ ] **QRAController: `runConsensusSync()` – `ky.get(rssUrl)` ohne Timeout, Retry, Error-Handling (Z. 211)**
+  - Datei: `src/controllers/QRAController.js` (Zeile 211)
+  - Problem: Kein `try/catch`, kein Timeout, kein Retry. Google News RSS ist ein externer Dienst – schlägt er fehl, endet der Job mit einer unbehandelten Exception.
+  - Lösung: `ky.get(rssUrl, { timeout: 30000, retry: { limit: 2 } })` + try/catch.
+
+- [ ] **SecController: `runMasterSync()` – `yahooFinance` direkt importiert, nicht per DI (Z. 4, 122)**
+  - Datei: `src/controllers/SecController.js` (Zeile 4, 122)
+  - Problem: `yahoo-finance2` wird als Modul-Level-Import direkt genutzt, nicht als DI-Parameter. Fehler bei Rate-Limiting treffen den Controller direkt. Yahoo-Fehler werden per `console.error` abgefangen, aber die Firma wird danach trotzdem mit SEC-Parsing fortgesetzt – ohne FMP-Fundamentals.
+
+- [ ] **SectorRotationController: Array-Index-Zugriff ohne vollständigen Guard (Z. 118–126)**
+  - Datei: `src/controllers/SectorRotationController.js` (Zeile 118–126)
+  - Problem: `etfData[idxMinus60]` und `etfData[idxMinus20]` können `undefined` sein, wenn der ETF-Index nicht synchron zum SPY-Index läuft. Der Guard `if (etfIndex < 70) continue` schützt nur teilweise.
+  - Klärung: Ist sichergestellt, dass `etfIndex` immer ≥ 70 ist, wenn `i >= 70`?
 
 ---
 
@@ -386,6 +450,96 @@
   - Problem: Identisches Muster wie andere Services. Treasury-Seite kann langsam oder kurzzeitig nicht erreichbar sein.
   - Lösung: `timeout: 30000, retry: { limit: 2, methods: ['get'] }` ergänzen.
 
+- [ ] **AlphaVantageOptionService: `callCounter` als Instanz-Variable – kein persistenter Schutz über mehrere Instanzen**
+  - Datei: `src/services/AlphaVantageOptionService.js` (Zeile 20–21)
+  - Problem: Kommentar verspricht "persistenter Instanz-Counter", aber der Counter lebt nur für die Lebensdauer der Klasse. Bei erneuter Instanziierung (`new AlphaVantageOptionService()`) beginnt er bei 0. Das 25-Calls-Tageslimit wird dann nicht eingehalten.
+  - Klärung: Singleton-Einsatz sicherstellen oder Counter in einer Datei/Umgebungsvariable persistieren.
+
+- [ ] **AlphaVantageOptionService: Netzwerk-Fehler als `[]`/`null` – stilles Scheitern**
+  - Datei: `src/services/AlphaVantageOptionService.js` (Zeile 96–99, 134–137)
+  - Problem: Identisches Muster wie `PolygonIoService.fetchOptionsContractBars` (bereits dokumentiert). Bei Netzwerkfehler wird `[]` / `null` zurückgegeben statt zu werfen. Caller kann nicht zwischen "keine Daten" und "API-Fehler" unterscheiden.
+
+- [ ] **OptionRepository: Chunking ohne Rollback bei Teilfehler – inkonsistente Datenbankzustände**
+  - Datei: `src/repositories/OptionRepository.js` (Zeile 39–54)
+  - Problem: Bei 3000 Datensätzen (3 Chunks) schreibt Chunk 1 erfolgreich, Chunk 2 wirft eine Exception – Chunk 3 wird nie geschrieben. Chunk 1 ist committed, die Tabelle enthält danach inkonsistente Snapshot-Daten. Kein Rollback-Mechanismus.
+  - Lösung: Fehler aus dem Loop akkumulieren und aggregiert werfen, oder Supabase-RPC-Transaktion nutzen.
+
+- [ ] **MarketStatusService: Kein API-Key-Guard im Konstruktor**
+  - Datei: `src/services/MarketStatusService.js` (Zeile 7)
+  - Problem: `this.apiKey = process.env.POLYGONIO_API_KEY` ohne `if (!this.apiKey) throw`. Bei fehlendem Key schlägt der API-Call mit einem kryptischen Polygon-Fehler fehl, anstatt sofort mit einer verständlichen Exception.
+
+- [ ] **LaborMarketRepository: `getSeries` gibt `data` ohne Null-Check zurück (Z. 14)**
+  - Datei: `src/repositories/LaborMarketRepository.js` (Zeile 14)
+  - Problem: `return data;` – wenn Supabase `{ data: null, error: null }` liefert (leere Tabelle ohne Fehler-Code), gibt `getSeries()` `null` zurück. Der Caller iteriert dann über `null` → TypeError.
+  - Lösung: `return data || [];`
+
+- [ ] **YahooService: `YahooFinance`-Instanz als Modul-Level-Singleton – kein DI, schwer testbar (Z. 2)**
+  - Datei: `src/services/YahooService.js` (Zeile 2)
+  - Problem: `const yahooFinance = new YahooFinance(...)` wird beim Laden des Moduls ausserhalb der Factory-Funktion erstellt. Nicht per DI austauschbar. Der Test-Mock ist deswegen ungewoehnlich aufwaendig (Klassen-Mock). Bei Initialisierungsfehlern bricht das gesamte Modul.
+  - Lösung: `yahooFinance`-Instanz innerhalb von `createYahooService()` erstellen und optional per Parameter injizieren.
+
+- [ ] **FiscalService: `getRecentAuctions` – Zeitzoneninkonsistenz bei Datumsberechnung (Z. 39–41)**
+  - Datei: `src/services/FiscalService.js` (Zeile 39–41)
+  - Problem: `new Date()` ist lokal, `toISOString()` gibt UTC aus. Bei Server in UTC+2 kurz nach Mitternacht ist der `startDate` um einen Tag verschoben.
+  - Lösung: `date.setUTCDate(date.getUTCDate() - daysBack)` konsistent in UTC rechnen.
+
+- [ ] **CboeService: Kein `retry` konfiguriert – trotz 60s Timeout (Z. 14)**
+  - Datei: `src/services/CboeService.js` (Zeile 14)
+  - Problem: `timeout: 60000` ohne `retry`. Bei Verbindungsabbruch nach 59 Sekunden schlaegt der Call direkt fehl. CBOE produziert gelegentlich temporäre Verbindungsabbrueche bei großen CSV-Downloads.
+  - Lösung: `retry: { limit: 1, methods: ['get'], statusCodes: [500, 503] }`
+
+- [ ] **FinnhubService: Finnhub API-Key in `searchParams` – Key-Leaking**
+  - Datei: `src/services/FinnhubService.js` (Zeile 32)
+  - Problem: `{ token: this.apiKey, ...searchParams }` – Token als Query-Parameter. Identisches Muster wie `SentimentNewsService` (bereits dokumentiert).
+
+- [ ] **CboeService: `'No data found'`-String-Check – zu fragil (Z. 39)**
+  - Datei: `src/services/CboeService.js` (Zeile 39)
+  - Problem: `responseText.includes('No data found')` – CBOE könnte die Fehlermeldung ändern. Eine HTML-Fehlerseite würde dann als CSV geparst, der `csv-parse`-Parser wirft kryptische Fehler.
+  - Lösung: Zusätzlich HTTP-Statuscode auswerten; bei unerwartetem Content-Type abbrechen.
+
+- [ ] **TickerRepository: `getAllTickers` gibt `data` ohne Null-Guard zurück (Z. 35)**
+  - Datei: `src/repositories/TickerRepository.js` (Zeile 35)
+  - Problem: `return data;` – identisches Problem wie `LaborMarketRepository.getSeries`. Kritisch, da `getAllTickers` der häufigste Einstiegspunkt für alle Controller ist. Supabase `{ data: null, error: null }` → Caller iteriert über `null` → TypeError.
+  - Lösung: `return data || [];`
+
+- [ ] **ArchiveRepository: `upsertM5Candles` ohne expliziten `onConflict` (Z. 9)**
+  - Datei: `src/repositories/ArchiveRepository.js` (Zeile 9)
+  - Problem: `.upsert(candles)` ohne `{ onConflict: 'ticker, timestamp' }`. Im Gegensatz dazu nutzt `CandleRepository.upsertM5Candles` den expliziten Conflict-Key. Supabase fällt ohne Angabe auf den Primary Key zurück – bei Schema-Änderungen können Duplikate entstehen.
+  - Lösung: `.upsert(candles, { onConflict: 'ticker, timestamp' })` wie in `CandleRepository`.
+
+- [ ] **EventRepository: `deleteUpcomingEvents` – destruktive Operation ohne Anzahl-Rückgabe (Z. 22–32)**
+  - Datei: `src/repositories/EventRepository.js` (Zeile 22–32)
+  - Problem: `.delete()` ohne `.select()` gibt keine Information über die Anzahl gelöschter Rows. Bei falschem `fromDateStr` (z.B. `'1970-01-01'`) werden alle Events der Ticker gelöscht ohne dass der Code das erkennt.
+  - Lösung: `.delete().select()` ergänzen und die Anzahl der gelöschten Rows im Log ausgeben.
+
+- [ ] **FiscalRepository: `upsertAuctionData` – 14 positionale Parameter (Z. 25–40)**
+  - Datei: `src/repositories/FiscalRepository.js` (Zeile 25–40)
+  - Problem: 14 positionale Parameter sind fehleranfällig. Eine vertauschte Reihenfolge beim Aufrufen ist nicht sofort sichtbar und führt zu stiller Datenkorrumpierung in der DB. Zwar JSDoc vorhanden, aber der Test auf Z. 32 übergibt alle 14 Werte als Literals ohne Labels.
+  - Lösung: Objekt-Parameter: `upsertAuctionData({ auctionDate, issueDate, ... })`.
+
+- [ ] **QRAController: `runBackfill()` – `while`-Loop ohne Early-Exit bei leeren Seiten (Z. 133)**
+  - Datei: `src/controllers/QRAController.js` (Zeile 133)
+  - Problem: Loop lädt bis zu 30 Seiten, auch wenn ab Seite 2 keine relevanten Links mehr gefunden werden. Kein Early-Exit bei mehreren leeren Seiten. Bei 30 Seiten × 4-Sekunden-Pacing: bis zu 2 Minuten Laufzeit für leere Seiten.
+  - Lösung: Counter für leere Seiten; nach 3 aufeinanderfolgenden leeren Seiten abbrechen.
+
+- [ ] **SecController: `_extractLlmContext` – kein Limit für Gesamtergebnis-Größe (Z. 31–53)**
+  - Datei: `src/controllers/SecController.js` (Zeile 31–53)
+  - Problem: Die Methode akkumuliert beliebig viele Snippets ohne Größen-Limit. Bei hoch-frequenten Keywords in großen Filings können hunderte 3000-Zeichen-Snippets erzeugt werden. `slice(0, 2)` auf Z. 244 mildert das ab, aber `accumulatedSnippets` wächst trotzdem unkontrolliert.
+
+- [ ] **LaborMarketController: `is_preliminary = true` hardcoded im Delta-Sync (Z. 35)**
+  - Datei: `src/controllers/LaborMarketController.js` (Zeile 35)
+  - Problem: Alle Delta-Sync-Daten werden als vorläufig gespeichert, auch wenn FRED den Wert bereits final revisioniert hat. Kein Prüf-Mechanismus ob ein Wert wirklich vorläufig ist.
+
+- [ ] **TradingCalendarBuilder: Chunking ohne Rollback bei Teilfehler (Z. 80–90)**
+  - Datei: `src/core/calendar/TradingCalendarBuilder.js` (Zeile 80–90)
+  - Problem: Identisches Muster wie `OptionRepository.insertAlphaVantageRatios`. Wenn Chunk 2 von 18 fehlschlägt, ist Chunk 1 bereits committed. Der Kalender ist inkonsistent (teilweise bis 2050, teilweise nicht).
+  - Lösung: Alle Fehler akkumulieren und aggregiert werfen, oder Supabase-RPC-Transaktion nutzen.
+
+- [ ] **OptionsController: `polygonService` als Methoden-Parameter statt Konstruktor-DI (Z. 53, 126)**
+  - Datei: `src/controllers/OptionsController.js` (Zeile 53, 126)
+  - Problem: `runHistoricSync(polygonService)` und `runBackfillSync(polygonService)` erhalten `polygonService` als Parameter, nicht per Konstruktor. Inkonsistent zu `alphaVantageService`. Aufruf ohne Parameter → TypeError bei `polygonService.fetchOptionsContractBars`.
+  - Lösung: `polygonService` in den Konstruktor verschieben.
+
 - [ ] **FinraService: `downloadFileContent` nutzt rohes `ky` statt `this.apiClient` – Browser-Header fehlen**
   - Datei: `src/services/FinraService.js` (Zeile 92)
   - Problem: Der Konstruktor konfiguriert `this.apiClient` mit realistischen Browser-Headern (User-Agent, Accept, Referer). `downloadFileContent` verwendet aber direkt `ky.get()` ohne diese Header. FINRA-CDN könnte Anfragen ohne Browser-Headers blockieren. Inkonsistenz zwischen den zwei Service-Methoden.
@@ -601,3 +755,93 @@
     - `fmpFundamentalExists` DB-Fehler-Kettenwirkung: `false` → `saveFmpFundamentals` → Duplicate-Key
     - `getCompaniesWithoutCik` mit leerem Ergebnis (`data = []`)
     - `saveAiSignals` mit `null` statt leerem Array
+
+- [ ] **AlphaVantageOptionService: `createPacingManager()` als Default-Parameter – Singleton-Problem**
+  - Datei: `src/services/AlphaVantageOptionService.js` (Zeile 11)
+  - Problem: Identisches Muster wie `LLMService` (Paket 3, Finding 8): Default-Parameter wird einmalig beim Laden des Moduls evaluiert.
+
+- [ ] **MarketStatusService + AlphaVantageOptionService: `import 'dotenv/config'` als Side-Effect im Service**
+  - Dateien: `src/services/MarketStatusService.js` (Z. 2) · `src/services/AlphaVantageOptionService.js` (Z. 2)
+  - Problem: `dotenv/config` als Side-Effect-Import in einem Service. In Test-Umgebungen ohne `.env`-Datei kann das zu Warnings führen. Setup gehört in den Einstiegspunkt (`index.js`).
+
+- [ ] **OptionRepository: `scraped_at` mit Millisekunden-Granularität als Conflict-Key**
+  - Datei: `src/repositories/OptionRepository.js` (Zeile 26, 47)
+  - Problem: `onConflict: 'contract_id,scraped_at'` – `scraped_at` wird per `new Date().toISOString()` gesetzt. Zwei Aufrufe innerhalb von 1ms erzeugen keinen Conflict → doppelte Zeilen möglich. Der Conflict-Key ist zu fein für einen zuverlässigen Upsert-Schutz.
+  - Klärung: Soll `scraped_at` auf Minuten gerundet werden?
+
+- [ ] **SectorRotationRepository: `.limit(1)` + `.single()` – redundantes Antipattern (Z. 23)**
+  - Datei: `src/repositories/SectorRotationRepository.js` (Zeile 21–23)
+  - Problem: `.limit(1).single()` – `.single()` wirft bei mehr als einem Ergebnis einen Fehler. In Kombination mit `.limit(1)` ist das zwar sicher, gilt aber als Antipattern in Supabase.
+  - Lösung: `.limit(1)` beibehalten, `.single()` entfernen und `data[0]` manuell zugreifen.
+
+- [ ] **MarketStatusService + AlphaVantageOptionService: Fehlende Test-Coverage**
+  - Dateien: `tests/services/MarketStatusService.test.js` · `tests/services/AlphaVantageOptionService.test.js`
+  - Fehlende Tests:
+    - `isMarketOpen` mit `extended-hours` Status (weder `true` noch `false`)
+    - `fetchIntradayRatios` mit `contract.type = null` → `.toUpperCase()` TypeError
+    - `fetchIntradayRatios` mit `volume_open_interest_ratio = null` → `parseFloat(null)` = `NaN` → 0 (Fallback ungetestet)
+
+- [ ] **FinnhubService: `console.warn` statt `throw` bei fehlendem API-Key (Z. 12)**
+  - Datei: `src/services/FinnhubService.js` (Zeile 11–13)
+  - Problem: `if (!this.apiKey) { console.warn(...); }` – kein `throw`. Der Code läuft weiter und schlaegt erst beim ersten `_fetch()`-Call mit einem kryptischen 401 fehl. Inkonsistent zu `SentimentNewsService`, der im Konstruktor korrekt wirft.
+  - Lösung: `throw new Error('FINNHUB_API_KEY fehlt!')` wie in `createSentimentNewsService`.
+
+- [ ] **FinnhubService: `import 'dotenv/config'` als Side-Effect im Service (Z. 2)**
+  - Datei: `src/services/FinnhubService.js` (Zeile 2)
+  - Problem: Identisches Muster wie `MarketStatusService` und `AlphaVantageOptionService` (bereits dokumentiert).
+
+- [ ] **YahooService: `fetchYieldForDate` gibt `null` bei Fehler zurück – stilles Scheitern (Z. 76–79)**
+  - Datei: `src/services/YahooService.js` (Zeile 76–79)
+  - Problem: Analoges Muster wie `AlphaVantageOptionService`/`PolygonIoService`. Caller bekommt `null` und muss selbst entscheiden ob das ein valider "kein Handelstag"-Fall oder ein echter Fehler ist.
+
+- [ ] **FiscalService + CboeService: Fehlende Test-Coverage**
+  - Dateien: `tests/services/FiscalService.test.js` · `tests/services/CboeService.test.js`
+  - Fehlende Tests:
+    - `fetchAuctions` mit `response.data = undefined` (→ `undefined` returned)
+    - `fetchAuctions` mit `response.data = null` (→ `null` returned)
+    - `CboeService`: Kein Test für ungültigen CSV-Content (HTML-Fehlerseite statt CSV → CSV-Parser-Fehler)
+    - `CboeService`: Leere Response `responseText = ''` (Grenzfall)
+
+- [ ] **ArchiveRepository: Kein Konstruktor-Guard (Designinkonsistenz)**
+  - Datei: `src/repositories/ArchiveRepository.js`
+  - Problem: Alle anderen Repositories mit Class-Syntax prüfen `if (!supabaseClient) throw`. `ArchiveRepository` hat keinen Konstruktor, da der Client global importiert wird. Designinkonsistenz.
+
+- [ ] **CandleRepository: `upsertDailyCandles` / `upsertM5Candles` – Code-Duplizierung (Z. 87–137)**
+  - Datei: `src/repositories/CandleRepository.js` (Zeile 87–137)
+  - Problem: Die beiden Methoden sind nahezu identisch (nur Tabellenname unterscheidet sich). Bei einem Bug muss die andere Methode manuell synchronisiert werden.
+  - Lösung: Private Hilfsmethode `_upsertCandles(table, tickerId, aggregates)` extrahieren.
+
+- [ ] **CandleRepository: `.limit(1)` + `.single()` – redundantes Antipattern (Z. 14, 33, 52)**
+  - Datei: `src/repositories/CandleRepository.js` (Zeile 14, 33, 52)
+  - Problem: Identisches Antipattern wie `SectorRotationRepository` (bereits dokumentiert). `.single()` ist redundant bei gesetztem `.limit(1)`.
+
+- [ ] **TickerRepository: `getTickersForJob` – kein Guard gegen ungültige `jobName`-Werte (Z. 43)**
+  - Datei: `src/repositories/TickerRepository.js` (Zeile 43)
+  - Problem: `jobName = undefined` ergibt eine Query mit `sync_type = undefined` → leeres Ergebnis ohne Fehler. Ein Typo im Aufrufer gibt einfach `[]` zurück statt zu werfen.
+  - Lösung: `if (!Object.values(SYNC_JOBS).includes(jobName)) throw new Error(...)` am Methodenanfang.
+
+- [ ] **FiscalRepository + EventRepository + CandleRepository: Fehlende Test-Coverage**
+  - Dateien: `tests/repositories/FiscalRepository.test.js` · `tests/repositories/EventRepository.test.js` · `tests/repositories/CandleRepository.test.js`
+  - Fehlende Tests:
+    - `updateAuctionTail`: kein Test für `{ error: null, data: null }` nach Update (Row existiert nicht)
+    - `deleteUpcomingEvents` mit `tickerIds = null` statt `[]` → `null.length` → TypeError
+    - `CandleRepository.getArchivedUntilTimestamp`: nicht getestet
+    - `getAllTickers` mit gesetztem `typeId` (gefilterter Pfad)
+
+- [ ] **SellingClimaxScorer: `today.volume` ohne Null-/Undefined-Check (Z. 28)**
+  - Datei: `src/core/analysis/SellingClimaxScorer.js` (Zeile 28)
+  - Problem: `today.volume / avgVol20` – `today.volume` könnte `undefined` sein (Candle ohne Volume-Feld) → `NaN` → alle `if (volRatio > ...)` Vergleiche scheitern still → Score = 0 ohne Warnung.
+  - Lösung: `const volRatio = (avgVol20 > 0 && today.volume != null) ? today.volume / avgVol20 : 0;`
+
+- [ ] **SectorRotationController: `V_FACTORS` als hardcoded Modul-Level-Konstante (Z. 6–15)**
+  - Datei: `src/controllers/SectorRotationController.js` (Zeile 6–15)
+  - Problem: Neue ETFs erfordern Code-Änderungen. Eine externe Konfiguration wäre robuster.
+
+- [ ] **LaborMarketController + OptionsController: Fehlende Test-Coverage**
+  - Dateien: `tests/controllers/` (nicht vorhanden)
+  - Problem: Keine Test-Files für `LaborMarketController` und `OptionsController` gefunden.
+
+- [ ] **QRAController: `fs.readFileSync` blockiert Event Loop im Debug-Modus (Z. 32)**
+  - Datei: `src/controllers/QRAController.js` (Zeile 32)
+  - Problem: Synchrones Datei-Lesen in einem `async`-Kontext blockiert den Node.js-Event-Loop. Nur im Debug-Modus aktiv, aber trotzdem schlechtes Pattern.
+  - Lösung: `await fs.promises.readFile(filePath, 'utf-8')`
