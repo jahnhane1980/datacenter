@@ -28,7 +28,7 @@ jobs:
         run: npm install
 
       - name: Selling Climax Scan ausführen
-        run: node sync.js --task climax
+        run: node sync.js --task climax --mode scan
         env:
           SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
