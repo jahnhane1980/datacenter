@@ -25,7 +25,7 @@ describe('LLMService', () => {
 
     beforeEach(() => {
         process.env.GROQ_API_KEY = 'TEST_KEY';
-        process.env.GEMINI_API_KEY = 'GEMINI_TEST_KEY';
+        delete process.env.GEMINI_API_KEY;
         
         mockPacingManager = {
             sleepMs: vi.fn().mockResolvedValue(true)
@@ -40,7 +40,8 @@ describe('LLMService', () => {
 
     it('should throw if no apiKey provided', () => {
         delete process.env.GROQ_API_KEY;
-        expect(() => createLLMService()).toThrow(/GROQ_API_KEY fehlt/);
+        delete process.env.GEMINI_API_KEY;
+        expect(() => createLLMService()).toThrow(/fehlt/);
         process.env.GROQ_API_KEY = 'TEST_KEY';
     });
 
@@ -171,27 +172,33 @@ describe('LLMService', () => {
         });
 
         it('should parse and return JSON correctly', async () => {
+            process.env.GEMINI_API_KEY = 'GEMINI_TEST_KEY';
+            const geminiService = createLLMService(mockPacingManager);
             const expectedResponse = { ratio_changed: true, new_ratio_percent: 5 };
             mockGenerateContent.mockResolvedValue({ text: JSON.stringify(expectedResponse) });
 
-            const result = await service.analyzeRegulationDocument('Text', 'Title');
+            const result = await geminiService.analyzeRegulationDocument('Text', 'Title');
             expect(result).toEqual(expectedResponse);
             expect(mockGenerateContent).toHaveBeenCalled();
         });
 
         it('should throw on 503 error', async () => {
+            process.env.GEMINI_API_KEY = 'GEMINI_TEST_KEY';
+            const geminiService = createLLMService(mockPacingManager);
             const error = new Error('Service Unavailable');
             error.status = 503;
             mockGenerateContent.mockRejectedValue(error);
 
-            await expect(service.analyzeRegulationDocument('Text', 'Title')).rejects.toThrow(/Service Unavailable/);
+            await expect(geminiService.analyzeRegulationDocument('Text', 'Title')).rejects.toThrow(/Service Unavailable/);
         });
 
         it('should throw on other errors', async () => {
+            process.env.GEMINI_API_KEY = 'GEMINI_TEST_KEY';
+            const geminiService = createLLMService(mockPacingManager);
             const error = new Error('Generic error');
             mockGenerateContent.mockRejectedValue(error);
 
-            await expect(service.analyzeRegulationDocument('Text', 'Title')).rejects.toThrow(/Generic error/);
+            await expect(geminiService.analyzeRegulationDocument('Text', 'Title')).rejects.toThrow(/Generic error/);
         });
     });
 });

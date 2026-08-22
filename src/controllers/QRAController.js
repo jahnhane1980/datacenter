@@ -176,7 +176,7 @@ export class QRAController extends BaseController {
                     
                     const articleText = $article('div.field--type-text-with-summary, div.clearfix.text-formatted').text() || $article('body').text();
 
-                    console.log(`  -> Sende Artikel-Text an Groq Llama 3.1 zur Extraktion...`);
+                    console.log(`  -> Sende Artikel-Text an Groq LLM zur Extraktion...`);
                     
                     const aiResult = await this.llmService.parseQraArticle(articleText, articleUrl);
 

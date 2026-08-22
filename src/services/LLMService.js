@@ -13,13 +13,24 @@ export class LLMService {
         this.GROQ_API_KEY = process.env.GROQ_API_KEY;
         this.GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-        if (!this.GROQ_API_KEY) {
-            throw new Error('GROQ_API_KEY fehlt in der .env oder den GitHub Secrets!');
+        if (!this.GEMINI_API_KEY && !this.GROQ_API_KEY) {
+            throw new Error('GEMINI_API_KEY oder GROQ_API_KEY fehlt in der .env oder den GitHub Secrets!');
         }
 
         if (this.GEMINI_API_KEY) {
             this.aiClient = new GoogleGenAI({ apiKey: this.GEMINI_API_KEY });
         }
+    }
+
+    async _queryLLM(systemPrompt, userPrompt, jsonMode = true, maxTokens = 500, retryDelayMs = 10000) {
+        if (this.GROQ_API_KEY) {
+            const groqRes = await this._queryGroq(systemPrompt, userPrompt, jsonMode, maxTokens, retryDelayMs);
+            if (groqRes !== null) return groqRes;
+        }
+        if (this.aiClient) {
+            return await this._queryGemini(systemPrompt, userPrompt, jsonMode);
+        }
+        return null;
     }
 
     async _queryGroq(systemPrompt, userPrompt, jsonMode = true, maxTokens = 500, retryDelayMs = 10000) {
@@ -34,7 +45,7 @@ export class LLMService {
                         'Content-Type': 'application/json'
                     },
                     json: {
-                        model: 'llama-3.1-8b-instant', 
+                        model: 'openai/gpt-oss-20b', 
                         messages: [
                             { role: 'system', content: systemPrompt },
                             { role: 'user', content: userPrompt }
@@ -83,15 +94,16 @@ export class LLMService {
         return null;
     }
 
-    async _queryGemini(prompt, jsonMode = true) {
+    async _queryGemini(systemPrompt, userPrompt, jsonMode = true) {
         if (!this.aiClient) {
             throw new Error('GEMINI_API_KEY fehlt in der .env oder den GitHub Secrets!');
         }
 
         try {
+            const contents = userPrompt ? `${systemPrompt}\n\n${userPrompt}` : systemPrompt;
             const response = await this.aiClient.models.generateContent({
                 model: 'gemini-2.5-flash',
-                contents: prompt,
+                contents: contents,
                 config: jsonMode ? { responseMimeType: 'application/json' } : {}
             });
             return jsonMode ? JSON.parse(response.text) : response.text;
@@ -109,31 +121,31 @@ export class LLMService {
     async parseQraArticle(articleText, url) {
         const systemPrompt = getQraSystemPrompt();
         const userPrompt = `Hier ist der Text des Artikels:\n\n${articleText}`;
-        return await this._queryGroq(systemPrompt, userPrompt, true, 500, 10000);
+        return await this._queryLLM(systemPrompt, userPrompt, true, 500, 10000);
     }
 
     async parseQraConsensus(newsText) {
         const systemPrompt = getQraConsensusSystemPrompt();
         const userPrompt = `Hier sind die aktuellen News Snippets (heute ist ${DateHelper.toSqlDate(new Date())}):\n\n${newsText}`;
-        return await this._queryGroq(systemPrompt, userPrompt, true, 500, 10000);
+        return await this._queryLLM(systemPrompt, userPrompt, true, 500, 10000);
     }
 
     async analyzeSecSnippet(snippet, metricName, ticker, archetype) {
         const systemPrompt = getSecSystemPrompt(metricName, ticker, archetype);
         const userPrompt = `Hier sind die Textausschnitte:\n\n${snippet}`;
-        return await this._queryGroq(systemPrompt, userPrompt, true, 1024, 45000);
+        return await this._queryLLM(systemPrompt, userPrompt, true, 1024, 45000);
     }
 
     async analyzeMacroEvent(event) {
         const systemPrompt = getMacroAlertSystemPrompt();
         const userPrompt = getMacroAlertUserPrompt(event);
         // jsonMode = false, da wir reinen Text (Plaintext) für Push-Nachrichten wollen
-        return await this._queryGroq(systemPrompt, userPrompt, false, 300, 10000);
+        return await this._queryLLM(systemPrompt, userPrompt, false, 300, 10000);
     }
 
     async analyzeRegulationDocument(text, title) {
         const prompt = getRegulationPrompt(title, text);
-        return await this._queryGemini(prompt, true);
+        return await this._queryGemini(prompt, null, true);
     }
 }
 

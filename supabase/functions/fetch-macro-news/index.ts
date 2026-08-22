@@ -94,15 +94,41 @@ serve(async (req)=>{
       collectedArticles.push(article);
     }
     if (collectedArticles.length > 0) {
+      const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
       const groqApiKey = Deno.env.get('GROQ_API_KEY');
       const urlObj = new URL(ntfyUrl);
       const ntfyBaseUrl = urlObj.origin;
       const topic = urlObj.pathname.replace('/', '');
       let ntfyMessage = "";
       let ntfyTitle = "";
-      if (groqApiKey) {
-        // Bereite Text für KI vor
-        const promptText = collectedArticles.map((a, i) => `Artikel ${i+1}:\nTitel: ${a.headline}\nZusammenfassung: ${a.summary}\nURL: ${a.url}\n`).join("\n");
+
+      const systemInstruction = "Du bist ein erfahrener Finanz-Analyst. Filtere irrelevantes Rauschen heraus. Fokussiere dich AUSSCHLIESSLICH auf Themen, die folgende Kernbereiche berühren: 1. Makro & Zentralbanken: Inflation (CPI, PCE), Leitzinsen, Zentralbanken (Fed, EZB, BoE, BoJ), Dollar (DXY). 2. Konjunktur & Handel: Arbeitsmarktdaten (NFP, Unemployment), Rezessionssorgen (GDP, PMI), Anleiherenditen, Zölle (Tariffs) und Handelskriege. 3. Geopolitik & Rohstoffe: Ölpreise (WTI, Brent, OPEC), Naher Osten (Israel, Iran), Russland/Ukraine, China/Taiwan, Sanktionen. 4. Tech & Datacenter: Große Hyperscaler und Chip-Hersteller (Nvidia, TSMC, ASML, AMD, Microsoft, Google, Amazon, Meta), insbesondere im Kontext von Capital Expenditures (CapEx) und Datacenter / AI Infrastructure. WICHTIG: Erkennst du mehrere Artikel zum exakt gleichen Thema (z.B. ein Hin und Her bei Konflikten), fasse diese zu einem einzigen Punkt zusammen und präsentiere nur den aktuellsten Stand bzw. das Gesamtergebnis. Vermeide es, jede Zwischenmeldung einzeln aufzulisten. Schreibe eine knackige, professionelle und gut lesbare Zusammenfassung auf Deutsch. Verlinke die URL zu jeder genutzten Nachricht. Wenn keine der Nachrichten wichtig ist, antworte exakt mit 'Keine signifikanten Makro-News'.";
+      const promptText = collectedArticles.map((a, i) => `Artikel ${i+1}:\nTitel: ${a.headline}\nZusammenfassung: ${a.summary}\nURL: ${a.url}\n`).join("\n");
+
+      if (geminiApiKey) {
+        try {
+          const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: `${systemInstruction}\n\n${promptText}` }] }]
+            })
+          });
+          if (geminiResponse.ok) {
+            const geminiData = await geminiResponse.json();
+            ntfyMessage = geminiData.candidates[0].content.parts[0].text;
+            ntfyTitle = `🤖 KI Macro Summary (${newArticlesCount} Artikel)`;
+          } else {
+            console.error("Gemini API Error:", await geminiResponse.text());
+            ntfyMessage = "Gemini API Fehler. Gefilterte Artikel:\n\n" + collectedArticles.map(a => `- ${a.headline} (${a.url})`).join("\n");
+            ntfyTitle = `⚠️ Macro News Fallback (${newArticlesCount} Artikel)`;
+          }
+        } catch (geminiErr) {
+          console.error("Exception during Gemini call:", geminiErr);
+          ntfyMessage = "Fehler bei Gemini Anfrage. Gefilterte Artikel:\n\n" + collectedArticles.map(a => `- ${a.headline} (${a.url})`).join("\n");
+          ntfyTitle = `⚠️ Macro News Fallback (${newArticlesCount} Artikel)`;
+        }
+      } else if (groqApiKey) {
         try {
           const groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
             method: 'POST',
@@ -111,16 +137,10 @@ serve(async (req)=>{
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-              model: "llama-3.3-70b-versatile",
+              model: "openai/gpt-oss-20b",
               messages: [
-                {
-                  role: "system",
-                  content: "Du bist ein erfahrener Finanz-Analyst. Filtere irrelevantes Rauschen heraus. Fokussiere dich AUSSCHLIESSLICH auf Themen, die folgende Kernbereiche berühren: 1. Makro & Zentralbanken: Inflation (CPI, PCE), Leitzinsen, Zentralbanken (Fed, EZB, BoE, BoJ), Dollar (DXY). 2. Konjunktur & Handel: Arbeitsmarktdaten (NFP, Unemployment), Rezessionssorgen (GDP, PMI), Anleiherenditen, Zölle (Tariffs) und Handelskriege. 3. Geopolitik & Rohstoffe: Ölpreise (WTI, Brent, OPEC), Naher Osten (Israel, Iran), Russland/Ukraine, China/Taiwan, Sanktionen. 4. Tech & Datacenter: Große Hyperscaler und Chip-Hersteller (Nvidia, TSMC, ASML, AMD, Microsoft, Google, Amazon, Meta), insbesondere im Kontext von Capital Expenditures (CapEx) und Datacenter / AI Infrastructure. WICHTIG: Erkennst du mehrere Artikel zum exakt gleichen Thema (z.B. ein Hin und Her bei Konflikten), fasse diese zu einem einzigen Punkt zusammen und präsentiere nur den aktuellsten Stand bzw. das Gesamtergebnis. Vermeide es, jede Zwischenmeldung einzeln aufzulisten. Schreibe eine knackige, professionelle und gut lesbare Zusammenfassung auf Deutsch. Verlinke die URL zu jeder genutzten Nachricht. Wenn keine der Nachrichten wichtig ist, antworte exakt mit 'Keine signifikanten Makro-News'."
-                },
-                {
-                  role: "user",
-                  content: promptText
-                }
+                { role: "system", content: systemInstruction },
+                { role: "user", content: promptText }
               ],
               temperature: 0.3
             })
@@ -141,7 +161,7 @@ serve(async (req)=>{
         }
       } else {
         // Fallback wenn kein API Key da ist
-        ntfyMessage = "Kein GROQ_API_KEY gefunden. Artikel:\n\n" + collectedArticles.map(a => `- ${a.headline} (${a.url})`).join("\n");
+        ntfyMessage = "Kein GEMINI_API_KEY / GROQ_API_KEY gefunden. Artikel:\n\n" + collectedArticles.map(a => `- ${a.headline} (${a.url})`).join("\n");
         ntfyTitle = `🚨 Macro News (${newArticlesCount} Artikel)`;
       }
       // Sende NTFY falls KI nicht "Keine signifikanten Makro-News" geantwortet hat
